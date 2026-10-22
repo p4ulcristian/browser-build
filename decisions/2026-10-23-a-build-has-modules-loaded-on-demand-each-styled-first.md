@@ -1,6 +1,6 @@
 # A build has modules loaded on demand, each with its own stylesheets, linked before its code
 
-> The user's decision, 2026-10-23 (house's "routing extras": loading on demand). Since v0.3.0. Carries over house's [A build can have several modules](https://github.com/p4ulcristian/house/blob/Starting-from-the-bottom/decisions/2026-10-12-a-build-can-have-several-modules.md) and Groundwork v0.5.0's `groundwork.browser.loader`. Changes in part [Every value that sets behaviour is a setting](2026-10-22-every-value-that-sets-behaviour-is-a-setting.md): the build's options gain `:modules`.
+> The user's decision, 2026-10-23 (house's "routing extras": loading on demand). Since v0.3.0. Carries over house's "A build can have several modules" and Groundwork v0.5.0's `groundwork.browser.loader`. Changes in part [Every value that sets behaviour is a setting](2026-10-22-every-value-that-sets-behaviour-is-a-setting.md): the build's options gain `:modules`.
 
 **Decision:**
 
