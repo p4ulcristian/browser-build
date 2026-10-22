@@ -14,7 +14,7 @@ found, and checks that none beside the code is left unnamed.
 io.github.p4ulcristian/showroom {:git/tag "v0.3.0" :git/sha "e0ff215"}
 ```
 
-Needs only shadow-cljs and malli, and only to build: take showroom in the aliases you
+Needs only shadow-cljs, malli and jsonista, and only to build: take showroom in the aliases you
 build with, never in `:deps`, so production runs without either. One public
 namespace, `showroom.api`, with a `.clj` half (the build, the macro) and a
 `.cljs` half (for the browser's code to require); its part is
@@ -25,7 +25,7 @@ namespace, `showroom.api`, with a `.clj` half (the build, the macro) and a
 | name | does |
 |---|---|
 | `start-watching!` `stop-watching!` | development: watch the build in this JVM; code and a saved stylesheet are swapped into open pages; the page loads `/js/main.js` and `/css/main.css`; showroom's messages go to the app's `:log` |
-| `build-for-release!` | the deploy: `js/main.<hash>.js`, `css/main.<hash>.css`, `manifest.edn` for each, and `file.gz` beside each; stops on a stylesheet no namespace names |
+| `build-for-release!` | the deploy: `js/main.<hash>.js`, `css/main.<hash>.css`, `manifest.edn` for each, and `file.gz` beside each; stops on a stylesheet no namespace names, and, before compiling, on an npm package it needs that isn't installed as one of package.json's `dependencies` (not `devDependencies`) |
 | `make-build` | the shadow-cljs build as data, `:watch` or `:release`: the module `main` and the `:modules` loaded on demand, files in `<files-folder>/js`, served at `/js`; each module's stylesheet bundle in `<files-folder>/css` |
 | `load-module!` | in the browser: a module of `:modules`, its stylesheets linked first, then its code, as script tags; a promise |
 | `use-stylesheet` | a macro, in the browser's code: names a stylesheet by its classpath path; a missing file stops the build at that line |

@@ -40,6 +40,7 @@
    [shadow.cljs.devtools.server.common :as shadow-common]
    [shadow.cljs.devtools.server.runtime :as shadow-runtime]
    [shadow.runtime.services :as shadow-services]
+   [showroom.npm :as npm]
    [showroom.settings :as settings]
    [showroom.stylesheets :as stylesheets])
   (:import
@@ -71,6 +72,8 @@
              :compiler-options {:output-feature-set output-feature-set}}
       (= :release mode)
       (-> (assoc-in [:compiler-options :optimizations] :advanced)
+          ;; every npm package it takes code from is the app's own dependency, before compiling
+          (update :build-hooks conj (list `npm/check-npm-packages))
           ;; the name carries the whole hash of the content (32 hex digits)
           (assoc :module-hash-names true))
 
@@ -172,14 +175,21 @@
    listing them (js/manifest.edn, css/manifest.edn), and a gzipped copy of
    each (file.gz), which the server sends to browsers that take gzip. The
    CSS isn't minified: gzipped, its spaces and comments cost almost
-   nothing. A stylesheet beside the namespaces that none names stops it.
+   nothing. Before any code is compiled, every npm package the build takes
+   code from must be installed as the app's own dependency (in
+   package.json's dependencies, not devDependencies): one missing, or
+   installed only for development, stops the build, named
+   (showroom.npm). A stylesheet beside the namespaces that none names stops it.
    The options are showroom.settings/release-options-shape's, every key
    required, checked first. For the deploy: clojure -X:browser-release
    :entry … :files-folder … (and every other option)."
   [{:keys [files-folder source-maps? gzip-level] :as options}]
   (let [build (make-build :release options)]
-    (run-in-own-shadow-runtime (make-shadow-config options :release)
-      #(shadow/release* build {:debug false :source-maps source-maps? :pseudo-names false :verbose false}))
+    (try
+      (run-in-own-shadow-runtime (make-shadow-config options :release)
+        #(shadow/release* build {:debug false :source-maps source-maps? :pseudo-names false :verbose false}))
+      (catch Throwable e
+        (throw (npm/tell-npm-problem-plainly e))))
     (gzip-built-files! files-folder gzip-level)
     :built))
 
