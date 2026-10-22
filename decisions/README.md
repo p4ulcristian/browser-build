@@ -2,7 +2,7 @@
 
 One file per decision: `YYYY-MM-DD-what-we-decided.md`. The title is the decision. Each file says what we decided, why, and what we chose against. A decision changes by a new file; the old one says so at the top (`Replaced by` or `Changed in part by`), and nothing else in it is rewritten.
 
-All but the last two were made while showroom was two libraries inside Groundwork, a Clojure framework (groundwork.server.browser-build and groundwork.browser.styles, and Groundwork's styles before them); they name its parts (its settings, its page shell, `start-app!`) where they came from. The ones they name that stayed with Groundwork: "Groundwork starts the browser and owns the build", which the build builds on, and "Groundwork is frozen", whose freeze the styles lifted.
+All but the last two were made while showroom was two libraries inside Groundwork, a Clojure framework (groundwork.server.browser-build and groundwork.browser.styles, and Groundwork's styles before them); they name its parts (its settings, its page shell, `start-app!`) where they came from. The ones they name that stayed with Groundwork: "Groundwork starts the browser and owns the build", which the build builds on, and "Groundwork is frozen", whose freeze the styles lifted. Groundwork is now house, the part of manor (the group of libraries this one belongs to) that puts them together; the decisions that stayed with Groundwork are in house's `decisions/`.
 
 ## In force
 
