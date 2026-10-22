@@ -11,7 +11,7 @@ the build gathers them into one bundle, in the order the namespaces are
 found, and checks that none beside the code is left unnamed.
 
 ```clojure
-io.github.p4ulcristian/showroom {:git/tag "v0.1.0" :git/sha "36a51a9"}
+io.github.p4ulcristian/showroom {:git/tag "v0.1.1" :git/sha "82b9ae9"}
 ```
 
 Needs only shadow-cljs and malli, and only to build: take showroom in the aliases you
@@ -31,8 +31,8 @@ namespace, `showroom.api`, with a `.clj` half (the build, the macro) and a
 
 ```clojure
 ;; deps.edn: the build aliases, never :deps
-:browser-build   {:extra-deps {io.github.p4ulcristian/showroom {:git/tag "v0.1.0" :git/sha "36a51a9"}}}
-:browser-release {:extra-deps {io.github.p4ulcristian/showroom {:git/tag "v0.1.0" :git/sha "36a51a9"}}
+:browser-build   {:extra-deps {io.github.p4ulcristian/showroom {:git/tag "v0.1.1" :git/sha "82b9ae9"}}}
+:browser-release {:extra-deps {io.github.p4ulcristian/showroom {:git/tag "v0.1.1" :git/sha "82b9ae9"}}
                   :exec-fn    showroom.api/build-for-release!
                   :exec-args  {:entry              app.browser.main/start!
                                :files-folder       "target/public"
