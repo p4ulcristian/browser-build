@@ -1,5 +1,7 @@
 # The browser build is Groundwork's: watched in development, built once by the deploy
 
+> **Changed in part** by [Every value that sets behaviour is a setting](2026-10-22-every-value-that-sets-behaviour-is-a-setting.md) (2026-10-22, v0.1.1): the app gives its entry and every option, required; shadow-cljs reads no `shadow-cljs.edn`, showroom hands it its whole configuration.
+
 > **Changed in part** by [showroom is its own library](2026-10-22-showroom-is-its-own-library.md) (2026-10-22): the library is showroom (`showroom.api`), not groundwork.server.browser-build; its build id is `:showroom`. The dependencies lock now names showroom, which brings shadow-cljs: showroom is what only the `:browser-build` and `:browser-release` aliases take.
 
 > Builds on Groundwork's decision "Groundwork starts the browser and owns the build".

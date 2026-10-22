@@ -1,5 +1,7 @@
 # Built files are gzipped, not minified; no node in the build
 
+> **Changed in part** by [Every value that sets behaviour is a setting](2026-10-22-every-value-that-sets-behaviour-is-a-setting.md) (2026-10-22, v0.1.1): the gzip level is `build-for-release!`'s `:gzip-level`, and the copies are written by hand (`GZIPOutputStream` takes no level).
+
 > Changes in part [A namespace names its stylesheets](2026-10-17-a-namespace-names-its-stylesheets.md): no lightningcss, no `:targets` setting.
 
 **Decision:** the release build writes a gzipped copy beside every built file (`main.<hash>.js.gz`, `main.<hash>.css.gz`), with the JVM's own gzip. The server sends the copy, `content-encoding: gzip`, to a browser that says it takes gzip, and the file itself to one that doesn't. The CSS bundle is not minified, and nesting isn't flattened: browsers since 2023 read nesting.

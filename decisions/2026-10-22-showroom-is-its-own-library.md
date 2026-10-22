@@ -1,5 +1,7 @@
 # showroom is its own library
 
+> **Changed in part** by [Every value that sets behaviour is a setting](2026-10-22-every-value-that-sets-behaviour-is-a-setting.md) (2026-10-22, v0.1.1): its `deps.edn` names malli too, which checks the options.
+
 > Changes in part [The browser build is Groundwork's](2026-10-22-the-browser-build-is-groundworks.md) and [A def names its stylesheet, as a query names its .sql file](2026-10-22-a-def-names-its-stylesheet-as-a-query-names-its-sql.md): their names, and how shadow-cljs is kept out of production.
 
 **Decision:** showroom is a library of its own, in its own public repository, under the MIT license; an app or a framework takes it from git by tag. It was two of Groundwork's libraries: `groundwork.server.browser-build` (the build) and `groundwork.browser.styles` (the `use-stylesheet` macro). Now it is the namespace `showroom`:

@@ -69,9 +69,20 @@
         (spit (io/file files-folder "css" "manifest.edn") (pr-str [{:output-name output-name}])))
       (write-if-changed! (io/file files-folder "css" "main.css") text))))
 
+(defn- find-modified-times
+  "Each named stylesheet's last save, by path, for those in folders (a
+   stylesheet in a jar doesn't change while watching)."
+  [paths]
+  (into {} (for [path paths
+                 :let [url (io/resource path)]
+                 :when (and url (= "file" (.getProtocol url)))]
+             [path (.lastModified (io/file url))])))
+
 (def last-bundle
-  "What the last watched compile named, for re-bundling when a stylesheet
-   is saved: {:paths […] :files-folder …}."
+  "The last bundle written while watching, for re-bundling when a
+   stylesheet is saved: {:paths […] :files-folder … :times {path saved-at}},
+   the times read before the stylesheets were, so a save while bundling is
+   seen at the next check."
   (atom nil))
 
 (defn bundle-stylesheets
@@ -87,32 +98,42 @@
         (if release?
           (throw (ex-info message {:type :showroom/unnamed-stylesheets :stylesheets (vec unnamed)}))
           (println message))))
-    (write-bundle! named files-folder release?)
-    (when-not release?
-      (reset! last-bundle {:paths named :files-folder files-folder}))
+    (if release?
+      (write-bundle! named files-folder true)
+      (let [times (find-modified-times named)]
+        (write-bundle! named files-folder false)
+        (reset! last-bundle {:paths named :files-folder files-folder :times times})))
     build-state))
 
-(defn- find-modified-times [paths]
-  (into {} (for [path paths
-                 :let [url (io/resource path)]
-                 :when (and url (= "file" (.getProtocol url)))]
-             [path (.lastModified (io/file url))])))
-
 (defn start-watching-stylesheets!
-  "Re-bundles when a named stylesheet is saved (checked every 300 ms);
-   shadow-cljs then swaps the new bundle into open pages. Returns a
-   function that stops it."
-  []
-  (let [running? (atom true)]
-    (Thread/startVirtualThread
-     (fn []
-       (loop [seen {}]
-         (when @running?
-           (Thread/sleep 300)
-           (let [{:keys [paths files-folder]} @last-bundle
-                 times (find-modified-times paths)]
-             (when (and (seq seen) (not= seen times))
-               (try (write-bundle! paths files-folder false)
-                    (catch Exception e (println "The stylesheet bundle failed:" (.getMessage e)))))
-             (recur times))))))
-    #(reset! running? false)))
+  "Re-bundles when a named stylesheet was saved after the last bundle was
+   written, checked every check-every-ms; shadow-cljs then swaps the new
+   bundle into open pages. Each check compares with the times the last
+   bundle was made from (by a compile or a check), not with the check
+   before: a save before the thread first runs is still seen. Runs on a
+   thread of its own, which a failed check doesn't end (it prints why and
+   checks again). Returns a function that stops it."
+  [check-every-ms]
+  (let [running? (atom true)
+        check!   (fn []
+                   (let [{:keys [paths files-folder times]} @last-bundle
+                         now (find-modified-times paths)]
+                     ;; nothing until a compile has bundled
+                     (when (and files-folder (not= times now))
+                       (write-bundle! paths files-folder false)
+                       (swap! last-bundle #(if (= paths (:paths %)) (assoc % :times now) %)))))
+        thread   (Thread.
+                  ^Runnable
+                  (fn []
+                    (while @running?
+                      (try
+                        (Thread/sleep (long check-every-ms))
+                        (check!)
+                        (catch InterruptedException _)
+                        (catch Exception e
+                          (println "The stylesheet bundle failed:" (.getMessage e))))))
+                  "showroom-stylesheets")]
+    (doto thread (.setDaemon true) (.start))
+    (fn []
+      (reset! running? false)
+      (.interrupt thread))))
