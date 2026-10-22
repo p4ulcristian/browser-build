@@ -30,13 +30,24 @@
   (str "add \"" package-name "\" to package.json's \"dependencies\" (not \"devDependencies\": "
        "the deploy installs without them, npm ci --omit=dev) and run npm install"))
 
+(defn- find-path-in-folder
+  "The resource's file, as a path from the folder the build runs in
+   (shadow-cljs's resource names munge dots: big.js is big_DOT_js)."
+  [{:keys [file resource-name]}]
+  (let [folder (str (.getCanonicalPath (io/file ".")) "/")
+        path   (some-> file io/file .getCanonicalPath)]
+    (if (and path (str/starts-with? path folder))
+      (subs path (count folder))
+      resource-name)))
+
 (defn- find-installed-key
   "The record's key for the package a resource is in:
    node_modules/react-dom/node_modules/scheduler/… -> node_modules/react-dom/node_modules/scheduler."
-  [{:keys [resource-name package-name]}]
-  (let [marker (str "node_modules/" package-name)
-        at     (str/last-index-of resource-name (str marker "/"))]
-    (when at (subs resource-name 0 (+ at (count marker))))))
+  [{:keys [package-name] :as resource}]
+  (let [path   (find-path-in-folder resource)
+        marker (str "node_modules/" package-name)
+        at     (str/last-index-of path (str marker "/"))]
+    (when at (subs path 0 (+ at (count marker))))))
 
 (defn- is-the-apps? [installed key]
   (let [entry (get installed key)]
@@ -52,8 +63,8 @@
 (defn- list-npm-resources [build-state]
   (->> (:build-sources build-state)
        (map #(get-in build-state [:sources %]))
-       (filter #(and (= :shadow-js (:type %)) (:package-name %) (:resource-name %)
-                     (str/includes? (:resource-name %) "node_modules/")))))
+       (filter #(and (= :shadow-js (:type %)) (:package-name %)
+                     (str/includes? (find-path-in-folder %) "node_modules/")))))
 
 (defn find-development-only-packages
   "The packages the build took JavaScript from that aren't installed as

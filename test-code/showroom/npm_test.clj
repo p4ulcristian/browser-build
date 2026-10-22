@@ -28,6 +28,11 @@
             {:package "process" :installed-as "node_modules/process"}]
            (npm/find-development-only-packages state installed))
         "react and a package react-dom brings pass; dev and extraneous ones don't"))
+  (testing "a package with a dot in its name, which shadow-cljs's resource names munge, is found by its file"
+    (is (= [] (npm/find-development-only-packages
+               (make-build-state [{:package-name "big.js" :resource-name "node_modules/big_DOT_js/big.js"
+                                   :file (java.io.File. "node_modules/big.js/big.js")}])
+               {"node_modules/big.js" {"version" "7.0.1"}}))))
   (testing "the app's own packages pass"
     (is (= [] (npm/find-development-only-packages
                (make-build-state [{:package-name "react" :resource-name "node_modules/react/cjs/react.production.js"}])
