@@ -26,7 +26,8 @@ namespace, `showroom.api`, with a `.clj` half (the build, the macro) and a
 |---|---|
 | `start-watching!` `stop-watching!` | development: watch the build in this JVM; code and a saved stylesheet are swapped into open pages; the page loads `/js/main.js` and `/css/main.css`; showroom's messages go to the app's `:log` |
 | `build-for-release!` | the deploy: `js/main.<hash>.js`, `css/main.<hash>.css`, `manifest.edn` for each, and `file.gz` beside each; stops on a stylesheet no namespace names |
-| `make-build` | the shadow-cljs build as data, `:watch` or `:release`: one module, `main`, files in `<files-folder>/js`, served at `/js` |
+| `make-build` | the shadow-cljs build as data, `:watch` or `:release`: the module `main` and the `:modules` loaded on demand, files in `<files-folder>/js`, served at `/js`; each module's stylesheet bundle in `<files-folder>/css` |
+| `load-module!` | in the browser: a module of `:modules`, its stylesheets linked first, then its code, as script tags; a promise |
 | `use-stylesheet` | a macro, in the browser's code: names a stylesheet by its classpath path; a missing file stops the build at that line |
 
 ```clojure
@@ -35,6 +36,7 @@ namespace, `showroom.api`, with a `.clj` half (the build, the macro) and a
 :browser-release {:extra-deps {io.github.p4ulcristian/showroom {:git/tag "v0.2.0" :git/sha "47696cf"}}
                   :exec-fn    showroom.api/build-for-release!
                   :exec-args  {:entry              app.browser.main/start!
+                               :modules            {}               ; or {:admin {:entries [app.admin.page] :depends-on #{:main}}}
                                :files-folder       "target/public"
                                :cache-folder       ".shadow-cljs"   ; shadow-cljs's cache
                                :compile-threads    4
@@ -46,6 +48,7 @@ namespace, `showroom.api`, with a `.clj` half (the build, the macro) and a
 (def watching ((requiring-resolve 'showroom.api/start-watching!)
                {:log                       log             ; the app's (logbook's): an unnamed stylesheet, a failed rebundle
                 :entry                     'app.browser.main/start!
+                :modules                   {}
                 :files-folder              "target/public"
                 :cache-folder              ".shadow-cljs"
                 :compile-threads           4

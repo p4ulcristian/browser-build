@@ -24,6 +24,7 @@
 
 (defn- make-release-options [entry]
   {:entry              entry
+   :modules            {}
    :files-folder       (make-folder)
    :cache-folder       (make-folder)
    :compile-threads    2
@@ -40,6 +41,7 @@
 (defn- make-watch-options []
   {:log                       log
    :entry                     'showroom.watch-check.entry/start!
+   :modules                   {}
    :files-folder              (make-folder)
    :cache-folder              (make-folder)
    :compile-threads           2
@@ -79,6 +81,30 @@
           "the named stylesheet, whole, as written")
       (is (= (slurp css) (gunzip (str css ".gz")))))))
 
+(deftest a-release-build-with-a-module-loaded-on-demand
+  (let [{:keys [files-folder] :as options} (assoc (make-release-options 'showroom.modules-check.main/start!)
+                                                  :modules {:admin {:entries '[showroom.modules-check.admin]
+                                                                    :depends-on #{:main}}})]
+    (with-out-str (showroom/build-for-release! options))
+    (let [js-files  (edn/read-string (slurp (io/file files-folder "js" "manifest.edn")))
+          css-files (edn/read-string (slurp (io/file files-folder "css" "manifest.edn")))
+          js-of     #(slurp (io/file files-folder "js" (:output-name (first (filter (fn [f] (= % (:module-id f))) js-files)))))
+          css-of    #(slurp (io/file files-folder "css" (:output-name (first (filter (fn [f] (= % (:module-id f))) css-files)))))]
+      (is (= [:admin :main] (sort (map :module-id js-files))) "two modules, each its own file")
+      (is (= [:admin :main] (map :module-id css-files)) "and each its own stylesheet bundle")
+      (is (every? #(re-matches #"(main|admin)\.[0-9A-F]+\.css" (:output-name %)) css-files))
+      (is (= "/* showroom/modules_check/main.css */
+.main-check { color: rebeccapurple; }
+" (css-of :main)))
+      (is (= "/* showroom/modules_check/admin.css */
+.admin-check { color: tomato; }
+" (css-of :admin)))
+      (is (str/includes? (js-of :admin) "admin-module-here") "the module's code in its own file")
+      (is (not (str/includes? (js-of :main) "admin-module-here")) "not in main")
+      (is (str/includes? (js-of :main) (:output-name (first (filter #(= :admin (:module-id %)) js-files))))
+          "main knows where the module's hashed file is, for the loader")
+      (is (every? #(.exists (io/file files-folder "css" (str (:output-name %) ".gz"))) css-files) "gzipped too"))))
+
 (deftest a-missing-stylesheet-stops-the-build
   (is (thrown? Exception
                (with-out-str (showroom/build-for-release! (make-release-options 'showroom.missing-check.entry/start!))))))
@@ -94,7 +120,7 @@
   (testing "build-for-release! names each missing option, before anything is built"
     (let [{:keys [type errors]} (find-refusal #(showroom/build-for-release! {:entry 'app.browser.main/start! :files-folder "target/public"}))]
       (is (= :showroom/bad-options type))
-      (is (= #{:cache-folder :compile-threads :output-feature-set :source-maps? :gzip-level} (set (keys errors))))))
+      (is (= #{:modules :cache-folder :compile-threads :output-feature-set :source-maps? :gzip-level} (set (keys errors))))))
   (testing "start-watching! names each missing option, before shadow-cljs starts"
     (let [{:keys [type errors]} (find-refusal #(showroom/start-watching! (dissoc (make-watch-options) :devtools-host :hud :nrepl :log)))]
       (is (= :showroom/bad-options type))

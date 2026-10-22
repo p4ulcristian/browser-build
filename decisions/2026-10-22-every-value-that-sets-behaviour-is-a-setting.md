@@ -1,3 +1,5 @@
+> **Changed in part** by [A build has modules loaded on demand, each with its own stylesheets, linked before its code](2026-10-23-a-build-has-modules-loaded-on-demand-each-styled-first.md) (2026-10-23, v0.3.0): the build's options gain `:modules`, `{}` for none.
+
 # Every value that sets behaviour is a setting; no hidden defaults
 
 > **Changed in part** by [The app passes its log to a watch](2026-10-22-the-app-passes-its-log.md) (2026-10-22, v0.2.0): `start-watching!`'s options take the app's log, `:log`, required.

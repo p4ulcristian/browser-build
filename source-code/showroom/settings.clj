@@ -15,8 +15,18 @@
    :browser-2020 :browser-2021 :browser-2022 :browser-2023 :browser-2024 :browser-2025
    :es-next :es-unsupported])
 
+(def modules-shape
+  "The modules loaded on demand, besides main, by name: each its :entries,
+   the namespaces it holds, and :depends-on, the modules it needs first
+   (main among them, or another of these). {} for none."
+  [:map-of [:and :keyword [:fn {:error/message "main is the entry's own module"} #(not= :main %)]]
+   [:map {:closed true}
+    [:entries [:vector {:min 1} :symbol]]
+    [:depends-on [:set {:min 1} :keyword]]]])
+
 (def ^:private build-entries
   [[:entry :qualified-symbol]
+   [:modules modules-shape]
    [:files-folder :string]
    [:cache-folder :string]
    [:compile-threads [:int {:min 1}]]
@@ -31,7 +41,11 @@
   "start-watching!'s options, every key required.
 
    The build:
-   :entry: the function the page runs, app.browser.main/start!.
+   :entry: the function the page runs, app.browser.main/start!, in the
+   module main, which the page loads.
+   :modules: the modules the page loads on demand (showroom.api's
+   load-module!), {} for none: {:admin {:entries [app.admin.page]
+   :depends-on #{:main}}}.
    :files-folder: where the files go, the folder the app's server serves at
    /: <files-folder>/js and <files-folder>/css.
    :cache-folder: shadow-cljs's cache (and its port files), \".shadow-cljs\".
@@ -75,7 +89,7 @@
 
 (def release-options-shape
   "build-for-release!'s options, every key required: the build's
-   (:entry :files-folder :cache-folder :compile-threads
+   (:entry :modules :files-folder :cache-folder :compile-threads
    :output-feature-set, as start-watching! takes them), and
    :source-maps?: a .map beside each file, so the browser shows the
    ClojureScript a failure came from (anyone can read it);

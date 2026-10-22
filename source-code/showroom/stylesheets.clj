@@ -1,12 +1,13 @@
 (ns showroom.stylesheets
-  "The page's one stylesheet bundle, made after every compile (a shadow-cljs
-   build hook): the stylesheets each namespace named with showroom.api's
-   use-stylesheet, in the order the namespaces are found, each whole and
-   as written, one after another.
+  "Each module's stylesheet bundle, made after every compile (a shadow-cljs
+   build hook): the stylesheets the module's namespaces named with
+   showroom.api's use-stylesheet, in the order the namespaces are found,
+   each whole and as written, one after another; a stylesheet two modules
+   name is in the first one's (one loads after the other).
 
-     <files-folder>/css/main.css               while watching
-     <files-folder>/css/main.<hash>.css        a release build, with
-     <files-folder>/css/manifest.edn           [{:output-name \"main.<hash>.css\"}]
+     <files-folder>/css/main.css, admin.css            while watching
+     <files-folder>/css/main.<hash>.css, admin.<hash>.css   a release build, with
+     <files-folder>/css/manifest.edn                   [{:module-id :main :output-name \"main.<hash>.css\"} …]
 
    The check: every .css file beside the build's namespaces must be named
    by one of them. A release build stops on any that isn't; while watching
@@ -18,14 +19,27 @@
   (:import
    (java.security MessageDigest)))
 
-(defn- list-named-stylesheets
-  "Every named stylesheet's path, in the order the namespaces are found."
-  [build-state]
-  (->> (:build-sources build-state)
+(defn- list-stylesheets-named-in [build-state resource-ids]
+  (->> resource-ids
        (keep #(get-in build-state [:sources % :ns]))
        (mapcat #(get-in build-state [:compiler-env :cljs.analyzer/namespaces % :showroom/stylesheets]))
        (distinct)
        (vec)))
+
+(defn- list-named-stylesheets
+  "Every named stylesheet's path, in the order the namespaces are found."
+  [build-state]
+  (list-stylesheets-named-in build-state (:build-sources build-state)))
+
+(defn- list-named-stylesheets-by-module
+  "Each module's named stylesheets, by module id, in the order its
+   namespaces are found; one named in two modules is the first one's."
+  [build-state]
+  (first (reduce (fn [[by-module taken] {:keys [module-id sources]}]
+                   (let [paths (vec (remove taken (list-stylesheets-named-in build-state sources)))]
+                     [(assoc by-module module-id paths) (into taken paths)]))
+                 [{} #{}]
+                 (:build-modules build-state))))
 
 (defn- list-unnamed-stylesheets
   "The .css files beside the build's own namespaces (in folders, not jars)
@@ -58,16 +72,19 @@
   (when-not (and (.exists (io/file file)) (= text (slurp file)))
     (spit file text)))
 
-(defn write-bundle!
-  "Writes the bundle of these stylesheets into the folder: main.css, or
-   when released, main.<hash>.css and its manifest."
-  [paths files-folder release?]
-  (let [text (make-bundle-text paths)]
-    (if release?
-      (let [output-name (str "main." (hash-text text) ".css")]
-        (write-if-changed! (io/file files-folder "css" output-name) text)
-        (spit (io/file files-folder "css" "manifest.edn") (pr-str [{:output-name output-name}])))
-      (write-if-changed! (io/file files-folder "css" "main.css") text))))
+(defn write-bundles!
+  "Writes each module's bundle into the folder: <module>.css, or when
+   released, <module>.<hash>.css and the manifest of them all."
+  [paths-by-module files-folder release?]
+  (if release?
+    (spit (io/file files-folder "css" "manifest.edn")
+          (pr-str (vec (for [[module-id paths] (sort-by key paths-by-module)
+                             :let [text        (make-bundle-text paths)
+                                   output-name (str (name module-id) "." (hash-text text) ".css")]]
+                         (do (write-if-changed! (io/file files-folder "css" output-name) text)
+                             {:module-id module-id :output-name output-name})))))
+    (doseq [[module-id paths] paths-by-module]
+      (write-if-changed! (io/file files-folder "css" (str (name module-id) ".css")) (make-bundle-text paths)))))
 
 (defn- find-modified-times
   "Each named stylesheet's last save, by path, for those in folders (a
@@ -79,19 +96,20 @@
              [path (.lastModified (io/file url))])))
 
 (def last-bundle
-  "The last bundle written while watching, for re-bundling when a
-   stylesheet is saved: {:paths […] :files-folder … :times {path saved-at}},
-   the times read before the stylesheets were, so a save while bundling is
-   seen at the next check."
+  "The last bundles written while watching, for re-bundling when a
+   stylesheet is saved: {:paths-by-module {module-id […]} :files-folder …
+   :times {path saved-at}}, the times read before the stylesheets were, so
+   a save while bundling is seen at the next check."
   (atom nil))
 
 (defn bundle-stylesheets
   "The build hook, after every compile: the check, then the bundle."
   {:shadow.build/stage :flush}
   [build-state {:keys [files-folder log]}]
-  (let [release? (= :release (:shadow.build/mode build-state))
-        named    (list-named-stylesheets build-state)
-        unnamed  (list-unnamed-stylesheets build-state named)]
+  (let [release?        (= :release (:shadow.build/mode build-state))
+        named           (list-named-stylesheets build-state)
+        unnamed         (list-unnamed-stylesheets build-state named)
+        paths-by-module (list-named-stylesheets-by-module build-state)]
     (when (seq unnamed)
       (if release?
         (throw (ex-info (str "Stylesheets no namespace names (name each with styles/use-stylesheet):\n  "
@@ -99,10 +117,10 @@
                         {:type :showroom/unnamed-stylesheets :stylesheets (vec unnamed)}))
         (log :warn :showroom/unnamed-stylesheets {:showroom/stylesheets (vec unnamed)})))
     (if release?
-      (write-bundle! named files-folder true)
+      (write-bundles! paths-by-module files-folder true)
       (let [times (find-modified-times named)]
-        (write-bundle! named files-folder false)
-        (reset! last-bundle {:paths named :files-folder files-folder :times times})))
+        (write-bundles! paths-by-module files-folder false)
+        (reset! last-bundle {:paths-by-module paths-by-module :files-folder files-folder :times times})))
     build-state))
 
 (defn start-watching-stylesheets!
@@ -117,12 +135,12 @@
   [check-every-ms log]
   (let [running? (atom true)
         check!   (fn []
-                   (let [{:keys [paths files-folder times]} @last-bundle
-                         now (find-modified-times paths)]
+                   (let [{:keys [paths-by-module files-folder times]} @last-bundle
+                         now (find-modified-times (distinct (apply concat (vals paths-by-module))))]
                      ;; nothing until a compile has bundled
                      (when (and files-folder (not= times now))
-                       (write-bundle! paths files-folder false)
-                       (swap! last-bundle #(if (= paths (:paths %)) (assoc % :times now) %)))))
+                       (write-bundles! paths-by-module files-folder false)
+                       (swap! last-bundle #(if (= paths-by-module (:paths-by-module %)) (assoc % :times now) %)))))
         thread   (Thread.
                   ^Runnable
                   (fn []

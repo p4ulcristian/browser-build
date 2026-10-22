@@ -8,7 +8,7 @@
      ;; code into open tabs (the app's server starts it when it watches)
      (def watching (showroom/start-watching!
                     {:log log                                  ; the app's (logbook's)
-                     :entry 'app.browser.main/start! :files-folder \"target/public\"
+                     :entry 'app.browser.main/start! :modules {} :files-folder \"target/public\"
                      :cache-folder \".shadow-cljs\" :compile-threads 4 :output-feature-set :es2020
                      :devtools-host \"localhost\" :devtools-port 9630 :devtools-url nil
                      :nrepl nil :socket-repl nil
@@ -19,10 +19,12 @@
      ;; the deploy, once, before the app starts:
      ;;   clojure -X:browser-release :entry app.browser.main/start! :files-folder '\"target/public\"' …
      ;; writes target/public/js/main.<hash>.js, css/main.<hash>.css and a
-     ;; manifest for each, which the page shell reads
+     ;; manifest for each, which the page shell reads; and a .js and a
+     ;; .css for each module loaded on demand (:modules)
 
      ;; in the app's browser code (showroom.api's ClojureScript half):
      (def order-card-styles (styles/use-stylesheet \"app/orders/order_card.css\"))
+     (styles/load-module! {\"admin\" \"/css/admin.3F9A….css\"} \"admin\")   ; its stylesheet, then its code
 
    shadow-cljs is needed only to build: production starts without it, so
    the app's server loads this namespace only when it watches. shadow-cljs
@@ -46,12 +48,14 @@
 
 (defn make-build
   "The shadow-cljs build, :watch or :release, from start-watching!'s or
-   build-for-release!'s options: one module, main, starting at the app's
-   entry; its files in <files-folder>/js, served at /js (the app's server
-   serves the files folder at /). After every compile the stylesheets the
-   namespaces named become <files-folder>/css's bundle; while watching,
-   shadow-cljs swaps a changed bundle into open pages."
-  [mode {:keys [entry files-folder output-feature-set log] :as options}]
+   build-for-release!'s options: the module main, starting at the app's
+   entry, which the page loads, and the :modules loaded on demand, each
+   after those it depends on (shadow-cljs's module loader, always on); the
+   files in <files-folder>/js, served at /js (the app's server serves the
+   files folder at /). After every compile the stylesheets each module's
+   namespaces named become that module's bundle in <files-folder>/css;
+   while watching, shadow-cljs swaps a changed bundle into open pages."
+  [mode {:keys [entry modules files-folder output-feature-set log] :as options}]
   (case mode
     :watch   (settings/check-watch-options options)
     :release (settings/check-release-options options))
@@ -60,7 +64,8 @@
              :target           :browser
              :output-dir       (str files-folder "/js")
              :asset-path       "/js"
-             :modules          {:main {:init-fn entry}}
+             :modules          (into {:main {:init-fn entry}} modules)
+             :module-loader    true
              ;; a release build has no log: it stops where a watch writes a warning
              :build-hooks      [(list `stylesheets/bundle-stylesheets {:files-folder files-folder :log log})]
              :compiler-options {:output-feature-set output-feature-set}}
