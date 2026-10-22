@@ -24,7 +24,7 @@ namespace, `showroom.api`, with a `.clj` half (the build, the macro) and a
 
 | name | does |
 |---|---|
-| `start-watching!` `stop-watching!` | development: watch the build in this JVM; code and a saved stylesheet are swapped into open pages; the page loads `/js/main.js` and `/css/main.css` |
+| `start-watching!` `stop-watching!` | development: watch the build in this JVM; code and a saved stylesheet are swapped into open pages; the page loads `/js/main.js` and `/css/main.css`; showroom's messages go to the app's `:log` |
 | `build-for-release!` | the deploy: `js/main.<hash>.js`, `css/main.<hash>.css`, `manifest.edn` for each, and `file.gz` beside each; stops on a stylesheet no namespace names |
 | `make-build` | the shadow-cljs build as data, `:watch` or `:release`: one module, `main`, files in `<files-folder>/js`, served at `/js` |
 | `use-stylesheet` | a macro, in the browser's code: names a stylesheet by its classpath path; a missing file stops the build at that line |
@@ -44,7 +44,8 @@ namespace, `showroom.api`, with a `.clj` half (the build, the macro) and a
 
 ;; the app's server, in development only: loaded when it watches
 (def watching ((requiring-resolve 'showroom.api/start-watching!)
-               {:entry                     'app.browser.main/start!
+               {:log                       log             ; the app's (logbook's): an unnamed stylesheet, a failed rebundle
+                :entry                     'app.browser.main/start!
                 :files-folder              "target/public"
                 :cache-folder              ".shadow-cljs"
                 :compile-threads           4
@@ -71,6 +72,13 @@ namespace, `showroom.api`, with a `.clj` half (the build, the macro) and a
 (defn order-card [order]
   [:div {:class "order-card"} (:order/number order)])
 ```
+
+showroom prints nothing: while watching, a stylesheet no namespace names
+(`:showroom/unnamed-stylesheets`) and a failed rebundle
+(`:showroom/bundle-failed`) go to the app's log, `(log level event data)` as
+[logbook](https://github.com/p4ulcristian/logbook) makes it, under `:log`. A
+release build takes none: it stops on what a watch warns about
+([why](decisions/2026-10-22-the-app-passes-its-log.md)).
 
 Every option is required: a missing or unknown one is refused, named, with
 every other problem at once, before anything is built. shadow-cljs reads no

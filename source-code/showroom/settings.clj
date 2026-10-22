@@ -55,10 +55,15 @@
    :hud: what open pages show over themselves while compiling, a set of
    :errors :warnings :progress, #{} for nothing.
    :stylesheet-check-every-ms: how often the named stylesheets are checked
-   for a save, which rebundles them and swaps the bundle into open pages."
+   for a save, which rebundles them and swaps the bundle into open pages.
+
+   :log: the app's log function, (log level event data), made by logbook:
+   a stylesheet no namespace names (:showroom/unnamed-stylesheets) and a
+   rebundle that failed (:showroom/bundle-failed) are written to it."
   (into [:map {:closed true}]
         (concat build-entries
-                [[:devtools-host :string]
+                [[:log [fn? {:error/message "should be the app's log function, made by logbook"}]]
+                 [:devtools-host :string]
                  [:devtools-port [:int {:min 0}]]
                  [:devtools-url [:maybe :string]]
                  [:nrepl repl-server-shape]
@@ -75,7 +80,11 @@
    :source-maps?: a .map beside each file, so the browser shows the
    ClojureScript a failure came from (anyone can read it);
    :gzip-level: how hard the .gz copies are squeezed, 1 (fast) to 9
-   (smallest)."
+   (smallest).
+
+   No :log: a release build writes no line of showroom's (a stylesheet no
+   namespace names stops it), and its options come from clojure -X's
+   :exec-args, where a function can't be written."
   (into [:map {:closed true}]
         (concat build-entries
                 [[:source-maps? :boolean]

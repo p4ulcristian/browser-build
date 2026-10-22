@@ -7,7 +7,8 @@
      ;; development: compiles, then again on every save, and swaps the new
      ;; code into open tabs (the app's server starts it when it watches)
      (def watching (showroom/start-watching!
-                    {:entry 'app.browser.main/start! :files-folder \"target/public\"
+                    {:log log                                  ; the app's (logbook's)
+                     :entry 'app.browser.main/start! :files-folder \"target/public\"
                      :cache-folder \".shadow-cljs\" :compile-threads 4 :output-feature-set :es2020
                      :devtools-host \"localhost\" :devtools-port 9630 :devtools-url nil
                      :nrepl nil :socket-repl nil
@@ -50,7 +51,7 @@
    serves the files folder at /). After every compile the stylesheets the
    namespaces named become <files-folder>/css's bundle; while watching,
    shadow-cljs swaps a changed bundle into open pages."
-  [mode {:keys [entry files-folder output-feature-set] :as options}]
+  [mode {:keys [entry files-folder output-feature-set log] :as options}]
   (case mode
     :watch   (settings/check-watch-options options)
     :release (settings/check-release-options options))
@@ -60,7 +61,8 @@
              :output-dir       (str files-folder "/js")
              :asset-path       "/js"
              :modules          {:main {:init-fn entry}}
-             :build-hooks      [(list `stylesheets/bundle-stylesheets {:files-folder files-folder})]
+             ;; a release build has no log: it stops where a watch writes a warning
+             :build-hooks      [(list `stylesheets/bundle-stylesheets {:files-folder files-folder :log log})]
              :compiler-options {:output-feature-set output-feature-set}}
       (= :release mode)
       (-> (assoc-in [:compiler-options :optimizations] :advanced)
@@ -96,7 +98,9 @@
   "Starts shadow-cljs in this JVM and watches the build: compiled now,
    again on every save, the new code swapped into open tabs. The options
    are showroom.settings/watch-options-shape's, every key required, checked
-   first. Returns once the first compile is done."
+   first; showroom's own messages (a stylesheet no namespace names, a
+   rebundle that failed) go to their :log, the app's. Returns once the
+   first compile is done."
   [options]
   (let [build (make-build :watch options)]
     (reset! stylesheets/last-bundle nil)
@@ -104,7 +108,7 @@
     (try
       (shadow/watch* build {:autobuild true :sync true :verbose false})
       (assoc options :stop-watching-stylesheets
-             (stylesheets/start-watching-stylesheets! (:stylesheet-check-every-ms options)))
+             (stylesheets/start-watching-stylesheets! (:stylesheet-check-every-ms options) (:log options)))
       (catch Throwable e
         (shadow-server/stop!)
         (throw e)))))

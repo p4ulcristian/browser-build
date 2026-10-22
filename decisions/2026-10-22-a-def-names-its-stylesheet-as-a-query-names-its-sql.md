@@ -1,5 +1,7 @@
 # A def names its stylesheet, as a query names its .sql file
 
+> **Changed in part** by [The app passes its log to a watch](2026-10-22-the-app-passes-its-log.md) (2026-10-22, v0.2.0): unnamed stylesheets found while watching are written to the app's log (`:warn :showroom/unnamed-stylesheets`), not printed.
+
 > **Changed in part** by [showroom is its own library](2026-10-22-showroom-is-its-own-library.md) (2026-10-22): `use-stylesheet` is showroom's (`showroom.api`), not groundwork.browser.styles's, and showroom, not groundwork.server.browser-build, gathers the bundle.
 
 > Changes in part [A namespace names its stylesheets](2026-10-17-a-namespace-names-its-stylesheets.md): a stylesheet is named by a call in the namespace, not in the ns form's metadata; the rest (plain CSS next to the code, plain-text classes, one bundle in the namespaces' order, the checks) stays.

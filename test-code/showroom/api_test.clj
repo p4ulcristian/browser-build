@@ -31,8 +31,15 @@
    :source-maps?       false
    :gzip-level         9})
 
+(def ^:private lines
+  "What the tests' log has been handed, [level event data] each."
+  (atom []))
+
+(defn- log [level event data] (swap! lines conj [level event data]) nil)
+
 (defn- make-watch-options []
-  {:entry                     'showroom.watch-check.entry/start!
+  {:log                       log
+   :entry                     'showroom.watch-check.entry/start!
    :files-folder              (make-folder)
    :cache-folder              (make-folder)
    :compile-threads           2
@@ -89,9 +96,9 @@
       (is (= :showroom/bad-options type))
       (is (= #{:cache-folder :compile-threads :output-feature-set :source-maps? :gzip-level} (set (keys errors))))))
   (testing "start-watching! names each missing option, before shadow-cljs starts"
-    (let [{:keys [type errors]} (find-refusal #(showroom/start-watching! (dissoc (make-watch-options) :devtools-host :hud :nrepl)))]
+    (let [{:keys [type errors]} (find-refusal #(showroom/start-watching! (dissoc (make-watch-options) :devtools-host :hud :nrepl :log)))]
       (is (= :showroom/bad-options type))
-      (is (= #{:devtools-host :hud :nrepl} (set (keys errors))))))
+      (is (= #{:devtools-host :hud :nrepl :log} (set (keys errors))) "the app's log among them")))
   (testing "an unknown option too"
     (is (= {:type :showroom/bad-options :errors {:gzip-levle ["disallowed key"]}}
            (find-refusal #(showroom/build-for-release! (assoc (make-release-options 'showroom.build-check/start!) :gzip-levle 9))))))
@@ -104,6 +111,7 @@
 
 (def ^:private entry-file (io/file "test-code/showroom/watch_check/entry.cljs"))
 (def ^:private css-file (io/file "test-code/showroom/watch_check/entry.css"))
+(def ^:private stray-file (io/file "test-code/showroom/watch_check/stray.css"))
 
 (defn- wait-until [f]
   (loop [n 0]
@@ -133,11 +141,16 @@
           (testing "a stylesheet saved right after the start is rebundled"
             (spit css-file ".watch-check { color: tomato; }\n")
             (is (wait-until #(str/includes? (slurp bundle) "tomato"))))
-          (testing "a saved namespace is compiled again"
+          (testing "a saved namespace is compiled again; a stylesheet no namespace names is written to the log"
+            (reset! lines [])
+            (spit stray-file ".stray { color: red; }\n")
             (spit entry-file (str/replace entry-text "watch-check-one" "watch-check-two"))
-            (is (wait-until #(str/includes? (slurp code) "watch-check-two"))))
+            (is (wait-until #(str/includes? (slurp code) "watch-check-two")))
+            (is (wait-until #(some #{[:warn :showroom/unnamed-stylesheets {:showroom/stylesheets ["showroom/watch_check/stray.css"]}]}
+                                   @lines))))
           (finally
             (binding [*out* output] (is (= :stopped (showroom/stop-watching! watching)))))))
       (finally
+        (io/delete-file stray-file true)
         (spit entry-file entry-text)
         (spit css-file css-text)))))

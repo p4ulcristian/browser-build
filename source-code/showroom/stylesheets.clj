@@ -10,7 +10,7 @@
 
    The check: every .css file beside the build's namespaces must be named
    by one of them. A release build stops on any that isn't; while watching
-   they are printed."
+   they are written to the app's log, :warn :showroom/unnamed-stylesheets."
   (:require
    [clojure.edn]
    [clojure.java.io :as io]
@@ -88,16 +88,16 @@
 (defn bundle-stylesheets
   "The build hook, after every compile: the check, then the bundle."
   {:shadow.build/stage :flush}
-  [build-state {:keys [files-folder]}]
+  [build-state {:keys [files-folder log]}]
   (let [release? (= :release (:shadow.build/mode build-state))
         named    (list-named-stylesheets build-state)
         unnamed  (list-unnamed-stylesheets build-state named)]
     (when (seq unnamed)
-      (let [message (str "Stylesheets no namespace names (name each with styles/use-stylesheet):\n  "
-                         (str/join "\n  " unnamed))]
-        (if release?
-          (throw (ex-info message {:type :showroom/unnamed-stylesheets :stylesheets (vec unnamed)}))
-          (println message))))
+      (if release?
+        (throw (ex-info (str "Stylesheets no namespace names (name each with styles/use-stylesheet):\n  "
+                             (str/join "\n  " unnamed))
+                        {:type :showroom/unnamed-stylesheets :stylesheets (vec unnamed)}))
+        (log :warn :showroom/unnamed-stylesheets {:showroom/stylesheets (vec unnamed)})))
     (if release?
       (write-bundle! named files-folder true)
       (let [times (find-modified-times named)]
@@ -111,9 +111,10 @@
    bundle into open pages. Each check compares with the times the last
    bundle was made from (by a compile or a check), not with the check
    before: a save before the thread first runs is still seen. Runs on a
-   thread of its own, which a failed check doesn't end (it prints why and
-   checks again). Returns a function that stops it."
-  [check-every-ms]
+   thread of its own, which a failed check doesn't end (it says why and
+   checks again). Returns a function that stops it. A failed check is
+   written to log, :error :showroom/bundle-failed."
+  [check-every-ms log]
   (let [running? (atom true)
         check!   (fn []
                    (let [{:keys [paths files-folder times]} @last-bundle
@@ -131,7 +132,7 @@
                         (check!)
                         (catch InterruptedException _)
                         (catch Exception e
-                          (println "The stylesheet bundle failed:" (.getMessage e))))))
+                          (log :error :showroom/bundle-failed {:error e})))))
                   "showroom-stylesheets")]
     (doto thread (.setDaemon true) (.start))
     (fn []

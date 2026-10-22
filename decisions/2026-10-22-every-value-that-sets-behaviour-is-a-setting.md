@@ -1,5 +1,7 @@
 # Every value that sets behaviour is a setting; no hidden defaults
 
+> **Changed in part** by [The app passes its log to a watch](2026-10-22-the-app-passes-its-log.md) (2026-10-22, v0.2.0): `start-watching!`'s options take the app's log, `:log`, required.
+
 > Changes in part [The browser build is Groundwork's: watched in development, built once by the deploy](2026-10-22-the-browser-build-is-groundworks.md) ("the app gives only its entry"), [Built files are gzipped, not minified](2026-10-22-built-files-are-gzipped-not-minified.md) (the gzip level was the JVM's default) and [showroom is its own library](2026-10-22-showroom-is-its-own-library.md) (shadow-cljs was its only dependency; malli joins it). Since v0.1.1.
 
 **Decision:** every value that sets how showroom builds and watches is written out by the app: a required option, checked by malli before anything is built, the maps closed, a missing or unknown key refused, named, with every other problem at once (`:showroom/bad-options`). No function fills in a value, and no default of shadow-cljs's is left in effect unwritten: showroom hands shadow-cljs its whole configuration, so shadow-cljs reads no `shadow-cljs.edn` and no user config file. What stays fixed is listed below, each with its reason.
