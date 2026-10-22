@@ -1,0 +1,18 @@
+;; showroom: what the browser shows, built. The app's ClojureScript compiled by
+;; shadow-cljs (watched in development, built once for a release) and the
+;; stylesheets its namespaces name, bundled. One tree: source-code/showroom/.
+;;
+;; Only to build, never in production: an app takes showroom in the aliases it
+;; builds with, never in its :deps, so its running server has no shadow-cljs.
+{:paths ["source-code"]
+
+ :deps
+ {;; the compiler, the watcher and the hot swap; ClojureScript comes with it
+  thheller/shadow-cljs {:mvn/version "3.5.7"}}
+
+ :aliases
+ {;; the tests:  clojure -X:test  (each release-builds a small entry)
+  :test {:extra-paths ["test-code"]
+         :extra-deps  {io.github.cognitect-labs/test-runner {:git/tag "v0.5.1" :git/sha "dfb30dd"}}
+         :exec-fn     cognitect.test-runner.api/test
+         :exec-args   {:dirs ["test-code"]}}}}
