@@ -48,11 +48,21 @@
    (java.io OutputStream)
    (java.util.zip CRC32 Deflater DeflaterOutputStream)))
 
+(defn- make-shadow-modules
+  "shadow-cljs's modules: main, starting at the app's entry, and each
+   module loaded on demand, its :start as its :init-fn (none for nil)."
+  [entry modules]
+  (into {:main {:init-fn entry}}
+        (for [[module-id {:keys [entries depends-on start]}] modules]
+          [module-id (cond-> {:entries entries :depends-on depends-on}
+                       start (assoc :init-fn start))])))
+
 (defn make-build
   "The shadow-cljs build, :watch or :release, from start-watching!'s or
    build-for-release!'s options: the module main, starting at the app's
    entry, which the page loads, and the :modules loaded on demand, each
-   after those it depends on (shadow-cljs's module loader, always on); the
+   after those it depends on (shadow-cljs's module loader, always on), its
+   :start run once its code has loaded; the
    files in <files-folder>/js, served at /js (the app's server serves the
    files folder at /). After every compile the stylesheets each module's
    namespaces named become that module's bundle in <files-folder>/css;
@@ -66,7 +76,7 @@
              :target           :browser
              :output-dir       (str files-folder "/js")
              :asset-path       "/js"
-             :modules          (into {:main {:init-fn entry}} modules)
+             :modules          (make-shadow-modules entry modules)
              :module-loader    true
              ;; a release build has no log: it stops where a watch writes a warning
              :build-hooks      [(list `stylesheets/bundle-stylesheets {:files-folder files-folder :log log})]

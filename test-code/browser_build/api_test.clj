@@ -89,8 +89,9 @@
 
 (deftest a-release-build-with-a-module-loaded-on-demand
   (let [{:keys [files-folder] :as options} (assoc (make-release-options 'browser-build.modules-check.main/start!)
-                                                  :modules {:admin {:entries '[browser-build.modules-check.admin]
-                                                                    :depends-on #{:main}}})]
+                                                  :modules {:admin {:entries    '[browser-build.modules-check.admin]
+                                                                    :depends-on #{:main}
+                                                                    :start      'browser-build.modules-check.admin/start!}})]
     (with-out-str (browser-build/build-for-release! options))
     (let [js-files  (edn/read-string (slurp (io/file files-folder "js" "manifest.edn")))
           css-files (edn/read-string (slurp (io/file files-folder "css" "manifest.edn")))
@@ -106,6 +107,7 @@
 .admin-check { color: tomato; }
 " (css-of :admin)))
       (is (str/includes? (js-of :admin) "admin-module-here") "the module's code in its own file")
+      (is (str/includes? (js-of :admin) "admin-start-here") "its :start kept and run, not dropped as unused")
       (is (not (str/includes? (js-of :main) "admin-module-here")) "not in main")
       (is (str/includes? (js-of :main) (:output-name (first (filter #(= :admin (:module-id %)) js-files))))
           "main knows where the module's hashed file is, for the loader")
@@ -142,6 +144,17 @@
              (select-keys (:devtools build) [:autoload :hud :reload-strategy]))))
     (is (= :advanced (get-in (browser-build/make-build :release (make-release-options 'browser-build.build-check/start!))
                              [:compiler-options :optimizations])))
+    (is (= {:main  {:init-fn 'app.main/start!}
+            :admin {:entries '[app.admin] :depends-on #{:main} :init-fn 'app.admin/start!}
+            :quiet {:entries '[app.quiet] :depends-on #{:main}}}
+           (:modules (browser-build/make-build :release (assoc (make-release-options 'app.main/start!)
+                                                          :modules {:admin {:entries '[app.admin] :depends-on #{:main} :start 'app.admin/start!}
+                                                                    :quiet {:entries '[app.quiet] :depends-on #{:main} :start nil}}))))
+        "a module's :start is its :init-fn; nil, none")
+    (is (= {:modules {:admin {:start ["missing required key"]}}}
+           (:errors (find-refusal #(browser-build/make-build :release (assoc (make-release-options 'app.main/start!)
+                                                                        :modules {:admin {:entries '[app.admin] :depends-on #{:main}}})))))
+        "a module names its start, nil for none")
     (let [build (browser-build/make-build :release (assoc (make-release-options 'browser-build.build-check/start!)
                                                      :resolve {"process" {:target :file :file "shim.js"} "@maptiler/sdk" false}
                                                      :closure-defines '{malli.registry/type "custom"}

@@ -16,13 +16,17 @@
    :es-next :es-unsupported])
 
 (def modules-shape
-  "The modules loaded on demand, besides main, by name: each its :entries,
-   the namespaces it holds, and :depends-on, the modules it needs first
-   (main among them, or another of these). {} for none."
+  "The modules loaded on demand, besides main, by name, every key written
+   out: each its :entries, the namespaces it holds; :depends-on, the
+   modules it needs first (main among them, or another of these); and
+   :start, the function run once when its code has loaded, before the
+   page that loaded it is drawn (shadow-cljs's :init-fn), or nil for none.
+   {} for none."
   [:map-of [:and :keyword [:fn {:error/message "main is the entry's own module"} #(not= :main %)]]
    [:map {:closed true}
     [:entries [:vector {:min 1} :symbol]]
-    [:depends-on [:set {:min 1} :keyword]]]])
+    [:depends-on [:set {:min 1} :keyword]]
+    [:start [:maybe :qualified-symbol]]]])
 
 (def resolve-shape
   "npm modules the build replaces, by name, {} for none: with a file
@@ -60,7 +64,8 @@
    module main, which the page loads.
    :modules: the modules the page loads on demand (browser-build.api's
    load-module!), {} for none: {:admin {:entries [app.admin.page]
-   :depends-on #{:main}}}.
+   :depends-on #{:main} :start app.admin.page/start!}}, :start nil for a
+   module with no start.
    :files-folder: where the files go, the folder the app's server serves at
    /: <files-folder>/js and <files-folder>/css.
    :cache-folder: shadow-cljs's cache (and its port files), \".shadow-cljs\".

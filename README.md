@@ -26,7 +26,7 @@ namespace, `browser-build.api`, with a `.clj` half (the build, the macro) and a
 |---|---|
 | `start-watching!` `stop-watching!` | development: watch the build in this JVM; code and a saved stylesheet are swapped into open pages; the page loads `/js/main.js` and `/css/main.css`; browser-build's messages go to the app's `:log` |
 | `build-for-release!` | the deploy: `js/main.<hash>.js`, `css/main.<hash>.css`, `manifest.edn` for each, and `file.gz` beside each; stops on a stylesheet no namespace names, and, before compiling, on an npm package it needs that isn't installed as one of package.json's `dependencies` (not `devDependencies`) |
-| `make-build` | the shadow-cljs build as data, `:watch` or `:release`: the module `main` and the `:modules` loaded on demand, files in `<files-folder>/js`, served at `/js`; each module's stylesheet bundle in `<files-folder>/css` |
+| `make-build` | the shadow-cljs build as data, `:watch` or `:release`: the module `main` and the `:modules` loaded on demand, each with its `:start` run once its code has loaded ([why](decisions/2026-10-23-a-module-names-its-start.md)), files in `<files-folder>/js`, served at `/js`; each module's stylesheet bundle in `<files-folder>/css` |
 | `load-module!` | in the browser: a module of `:modules`, its stylesheets linked first, then its code, as script tags; a promise |
 | `use-stylesheet` | a macro, in the browser's code: names a stylesheet by its classpath path; a missing file stops the build at that line |
 
@@ -36,7 +36,7 @@ namespace, `browser-build.api`, with a `.clj` half (the build, the macro) and a
 :browser-release {:extra-deps {io.github.p4ulcristian/browser-build {:git/tag "v0.4.3" :git/sha "9efddf6"}}
                   :exec-fn    browser-build.api/build-for-release!
                   :exec-args  {:entry              app.browser.main/start!
-                               :modules            {}               ; or {:admin {:entries [app.admin.page] :depends-on #{:main}}}
+                               :modules            {}               ; or {:admin {:entries [app.admin.page] :depends-on #{:main} :start app.admin.page/start!}}, :start nil for none
                                :files-folder       "target/public"
                                :cache-folder       ".shadow-cljs"   ; shadow-cljs's cache
                                :compile-threads    4

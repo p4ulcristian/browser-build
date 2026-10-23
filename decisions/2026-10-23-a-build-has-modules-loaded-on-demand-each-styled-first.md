@@ -1,5 +1,7 @@
 # A build has modules loaded on demand, each with its own stylesheets, linked before its code
 
+> **Added to** by [A module names its start](2026-10-23-a-module-names-its-start.md) (2026-10-23, built on tidy-up, not released): each module writes out `:start`, its shadow-cljs `:init-fn`, nil for none.
+
 > **Changed in part** by [The family and its composer are groundwork](https://github.com/p4ulcristian/groundwork/blob/Starting-from-the-bottom/decisions/2026-10-23-the-family-and-its-composer-are-groundwork.md) (2026-10-23): manor, the family, and house, the composer, are both named groundwork now.
 
 > The user's decision, 2026-10-23 (house's "routing extras": loading on demand). Since v0.3.0. Carries over house's "A build can have several modules" and Groundwork v0.5.0's `groundwork.browser.loader`. Changes in part [Every value that sets behaviour is a setting](2026-10-22-every-value-that-sets-behaviour-is-a-setting.md): the build's options gain `:modules`.

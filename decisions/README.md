@@ -15,10 +15,11 @@ All but the last four were made while showroom was two libraries inside Groundwo
 - [showroom is its own library](2026-10-22-showroom-is-its-own-library.md), changed in part by [Every value that sets behaviour is a setting](2026-10-22-every-value-that-sets-behaviour-is-a-setting.md)
 - [Every value that sets behaviour is a setting; no hidden defaults](2026-10-22-every-value-that-sets-behaviour-is-a-setting.md), changed in part by [The app passes its log to a watch](2026-10-22-the-app-passes-its-log.md) and [A build has modules loaded on demand](2026-10-23-a-build-has-modules-loaded-on-demand-each-styled-first.md)
 - [The app passes its log to a watch; a release build has none](2026-10-22-the-app-passes-its-log.md)
-- [A build has modules loaded on demand, each with its own stylesheets, linked before its code](2026-10-23-a-build-has-modules-loaded-on-demand-each-styled-first.md)
+- [A build has modules loaded on demand, each with its own stylesheets, linked before its code](2026-10-23-a-build-has-modules-loaded-on-demand-each-styled-first.md), added to by [A module names its start](2026-10-23-a-module-names-its-start.md)
 - [A release checks, before compiling, that every npm package it needs is the app's own dependency](2026-10-23-a-release-checks-its-npm-packages-are-the-apps-own.md)
 - [A build names its module replacements, its defines and the warnings that stop it; no pass-through](2026-10-23-a-build-names-its-module-replacements-defines-and-warnings-that-stop-it.md)
 - [showroom is renamed browser-build](2026-10-23-showroom-is-renamed-browser-build.md)
+- [A module names its start](2026-10-23-a-module-names-its-start.md) (built on tidy-up, not released)
 
 ## Replaced
 
