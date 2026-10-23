@@ -33,3 +33,10 @@ Choices made while building, not asked:
 7. **The release's hashed name is the hash of the rewritten text,** what is written.
 8. **No download timeout:** the decision names no setting for one; a download that hangs holds the build until it is stopped.
 9. **The tests pin lightningcss 1.33.0** and download it, so they need the network.
+
+## Changed 2026-10-23 (the user's decisions, after the build)
+
+- **The native download stays.** Weighed and turned down: lightningcss as one WebAssembly file run in Java (keeps nesting, same output, but ~8 s per cold build and a .wasm rebuilt for every release), no transformer with only a check (developers lose nesting until the floor moves), raising Iron Rainbow's floor to Safari 18.
+- **browser-build pins lightningcss**, as it pins shadow-cljs: the version and each platform's sha256 live in browser-build, and an app writes only `:css {:targets "…"}` (or `:css nil`). Upgrading lightningcss is a browser-build release.
+- **The download has a time limit**, a required setting.
+- **browser-build checks the targets itself** before calling lightningcss, which aborts (dumps core) on a browser name it doesn't know; an unknown name stops the build, named.
