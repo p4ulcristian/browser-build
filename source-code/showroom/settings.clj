@@ -24,13 +24,28 @@
     [:entries [:vector {:min 1} :symbol]]
     [:depends-on [:set {:min 1} :keyword]]]])
 
+(def resolve-shape
+  "npm modules the build replaces, by name, {} for none: with a file
+   ({:target :file :file \"src/process_shim.js\"}), a global the page
+   already has ({:target :global :global \"THREE\"}), another npm package
+   ({:target :npm :require \"preact/compat\"}), or nothing (false)."
+  [:map-of :string
+   [:or
+    [:= false]
+    [:map {:closed true} [:target [:= :file]] [:file :string]]
+    [:map {:closed true} [:target [:= :global]] [:global :string]]
+    [:map {:closed true} [:target [:= :npm]] [:require :string]]]])
+
 (def ^:private build-entries
   [[:entry :qualified-symbol]
    [:modules modules-shape]
    [:files-folder :string]
    [:cache-folder :string]
    [:compile-threads [:int {:min 1}]]
-   [:output-feature-set (into [:enum] output-feature-sets)]])
+   [:output-feature-set (into [:enum] output-feature-sets)]
+   [:resolve resolve-shape]
+   [:closure-defines [:map-of :symbol [:or :string :boolean number?]]]
+   [:warnings-as-errors [:set :keyword]]])
 
 (def ^:private repl-server-shape
   [:maybe [:map {:closed true}
@@ -51,6 +66,11 @@
    :cache-folder: shadow-cljs's cache (and its port files), \".shadow-cljs\".
    :compile-threads: how many namespaces compile at once.
    :output-feature-set: what the compiled code may use (output-feature-sets).
+   :resolve: npm modules replaced (resolve-shape), {} for none.
+   :closure-defines: goog-define values the build is compiled with,
+   {malli.registry/type \"custom\"}, {} for none.
+   :warnings-as-errors: the compiler warnings that stop the build,
+   #{:infer-warning}, #{} for none.
 
    shadow-cljs's server, which open pages connect to for new code:
    :devtools-host: the address it listens on, \"localhost\" (\"0.0.0.0\"
@@ -90,7 +110,8 @@
 (def release-options-shape
   "build-for-release!'s options, every key required: the build's
    (:entry :modules :files-folder :cache-folder :compile-threads
-   :output-feature-set, as start-watching! takes them), and
+   :output-feature-set :resolve :closure-defines :warnings-as-errors, as
+   start-watching! takes them), and
    :source-maps?: a .map beside each file, so the browser shows the
    ClojureScript a failure came from (anyone can read it);
    :gzip-level: how hard the .gz copies are squeezed, 1 (fast) to 9

@@ -41,6 +41,9 @@ namespace, `showroom.api`, with a `.clj` half (the build, the macro) and a
                                :cache-folder       ".shadow-cljs"   ; shadow-cljs's cache
                                :compile-threads    4
                                :output-feature-set :es2020          ; what the browsers must understand
+                               :resolve            {}               ; npm modules replaced: {"process" {:target :file :file "src/process_shim.js"}}
+                               :closure-defines    {}               ; goog-defines: {malli.registry/type "custom"}
+                               :warnings-as-errors #{}              ; warnings that stop the build: #{:infer-warning}
                                :source-maps?       false            ; a .map beside each file, readable by anyone
                                :gzip-level         9}}              ; the .gz copies, 1 (fast) to 9 (smallest)
 
@@ -53,6 +56,9 @@ namespace, `showroom.api`, with a `.clj` half (the build, the macro) and a
                 :cache-folder              ".shadow-cljs"
                 :compile-threads           4
                 :output-feature-set        :es2020
+                :resolve                   {}
+                :closure-defines           {}
+                :warnings-as-errors        #{}
                 :devtools-host             "localhost"     ; where open pages connect for new code; it can run code in this JVM
                 :devtools-port             9630            ; a port in use is refused; 0 picks a free one
                 :devtools-url              nil             ; nil: the page's own host and that port

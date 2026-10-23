@@ -29,6 +29,9 @@
    :cache-folder       (make-folder)
    :compile-threads    2
    :output-feature-set :es2020
+   :resolve            {}
+   :closure-defines    {}
+   :warnings-as-errors #{}
    :source-maps?       false
    :gzip-level         9})
 
@@ -46,6 +49,9 @@
    :cache-folder              (make-folder)
    :compile-threads           2
    :output-feature-set        :es2020
+   :resolve                   {}
+   :closure-defines           {}
+   :warnings-as-errors        #{}
    :devtools-host             "localhost"
    :devtools-port             0
    :devtools-url              nil
@@ -120,7 +126,9 @@
   (testing "build-for-release! names each missing option, before anything is built"
     (let [{:keys [type errors]} (find-refusal #(showroom/build-for-release! {:entry 'app.browser.main/start! :files-folder "target/public"}))]
       (is (= :showroom/bad-options type))
-      (is (= #{:modules :cache-folder :compile-threads :output-feature-set :source-maps? :gzip-level} (set (keys errors))))))
+      (is (= #{:modules :cache-folder :compile-threads :output-feature-set :resolve :closure-defines :warnings-as-errors
+               :source-maps? :gzip-level}
+             (set (keys errors))))))
   (testing "start-watching! names each missing option, before shadow-cljs starts"
     (let [{:keys [type errors]} (find-refusal #(showroom/start-watching! (dissoc (make-watch-options) :devtools-host :hud :nrepl :log)))]
       (is (= :showroom/bad-options type))
@@ -133,7 +141,18 @@
       (is (= {:autoload false :hud false :reload-strategy :full}
              (select-keys (:devtools build) [:autoload :hud :reload-strategy]))))
     (is (= :advanced (get-in (showroom/make-build :release (make-release-options 'showroom.build-check/start!))
-                             [:compiler-options :optimizations])))))
+                             [:compiler-options :optimizations])))
+    (let [build (showroom/make-build :release (assoc (make-release-options 'showroom.build-check/start!)
+                                                     :resolve {"process" {:target :file :file "shim.js"} "@maptiler/sdk" false}
+                                                     :closure-defines '{malli.registry/type "custom"}
+                                                     :warnings-as-errors #{:infer-warning}))]
+      (is (= {"process" {:target :file :file "shim.js"} "@maptiler/sdk" false} (get-in build [:js-options :resolve])))
+      (is (= '{malli.registry/type "custom"} (get-in build [:compiler-options :closure-defines])))
+      (is (= #{:infer-warning} (get-in build [:compiler-options :warnings-as-errors]))))
+    (is (= :showroom/bad-options
+           (:type (find-refusal #(showroom/make-build :release (assoc (make-release-options 'showroom.build-check/start!)
+                                                                      :resolve {"x" {:target :file}})))))
+        "a replacement says what it is replaced with")))
 
 (def ^:private entry-file (io/file "test-code/showroom/watch_check/entry.cljs"))
 (def ^:private css-file (io/file "test-code/showroom/watch_check/entry.css"))

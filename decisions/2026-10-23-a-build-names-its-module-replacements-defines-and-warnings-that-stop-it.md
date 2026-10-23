@@ -1,6 +1,6 @@
 # A build names its module replacements, its defines and the warnings that stop it; no pass-through
 
-> The user's decision, 2026-10-23, for Iron Rainbow's move to Groundwork v1 (its build uses all three: a `process` shim three.js needs, malli's registry define, `:infer-warning` as an error). Not built yet.
+> The user's decision, 2026-10-23, for Iron Rainbow's move to Groundwork v1 (its build uses all three: a `process` shim three.js needs, malli's registry define, `:infer-warning` as an error). Built the same day.
 
 **Decision:** three new build settings, each required, checked by malli, written out empty where none is meant:
 

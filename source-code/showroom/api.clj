@@ -10,6 +10,7 @@
                     {:log log                                  ; the app's (logbook's)
                      :entry 'app.browser.main/start! :modules {} :files-folder \"target/public\"
                      :cache-folder \".shadow-cljs\" :compile-threads 4 :output-feature-set :es2020
+                     :resolve {} :closure-defines {} :warnings-as-errors #{}
                      :devtools-host \"localhost\" :devtools-port 9630 :devtools-url nil
                      :nrepl nil :socket-repl nil
                      :hot-reload? true :reload-strategy :optimized :hud #{:errors :warnings :progress}
@@ -56,7 +57,7 @@
    files folder at /). After every compile the stylesheets each module's
    namespaces named become that module's bundle in <files-folder>/css;
    while watching, shadow-cljs swaps a changed bundle into open pages."
-  [mode {:keys [entry modules files-folder output-feature-set log] :as options}]
+  [mode {:keys [entry modules files-folder output-feature-set log resolve closure-defines warnings-as-errors] :as options}]
   (case mode
     :watch   (settings/check-watch-options options)
     :release (settings/check-release-options options))
@@ -69,7 +70,10 @@
              :module-loader    true
              ;; a release build has no log: it stops where a watch writes a warning
              :build-hooks      [(list `stylesheets/bundle-stylesheets {:files-folder files-folder :log log})]
-             :compiler-options {:output-feature-set output-feature-set}}
+             :js-options       {:resolve resolve}
+             :compiler-options {:output-feature-set output-feature-set
+                                :closure-defines    closure-defines
+                                :warnings-as-errors warnings-as-errors}}
       (= :release mode)
       (-> (assoc-in [:compiler-options :optimizations] :advanced)
           ;; every npm package it takes code from is the app's own dependency, before compiling
