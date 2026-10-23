@@ -1,10 +1,10 @@
-(ns browser-build.settings
+(ns groundwork-browser-build.settings
   "browser-build's options, as malli shapes, checked before anything is built.
    Nothing has a default: every key is written out (nil where it is a
    choice), and a missing or unknown one refuses, named, with every other
    problem at once. Both maps are closed."
   (:require
-   [browser-build.lightningcss :as lightningcss]
+   [groundwork-browser-build.lightningcss :as lightningcss]
    [malli.core :as malli]
    [malli.error :as malli-error]))
 
@@ -84,7 +84,7 @@
    The build:
    :entry: the function the page runs, app.browser.main/start!, in the
    module main, which the page loads.
-   :modules: the modules the page loads on demand (browser-build.api's
+   :modules: the modules the page loads on demand (groundwork-browser-build.api's
    load-module!), {} for none: {:admin {:entries [app.admin.page]
    :depends-on #{:main} :start app.admin.page/start!}}, :start nil for a
    module with no start.
@@ -107,7 +107,7 @@
    :lightningcss-download-timeout-ms: how long the pinned lightningcss may
    take to download (once per platform, into the cache folder), connecting
    and the whole tarball; past it the build stops,
-   :browser-build/lightningcss-download-timed-out. Written out with :css
+   :groundwork-browser-build/lightningcss-download-timed-out. Written out with :css
    nil too, which downloads nothing.
    :preloads: namespaces loaded before the entry, while watching only
    (development tools: a debugger's), [] for none; a release build has
@@ -132,12 +132,12 @@
    :stylesheet-check-every-ms: how often the named stylesheets are checked
    for a save, which rebundles them and swaps the bundle into open pages.
 
-   :log: the app's log function, (log level event data), made by logbook:
-   a stylesheet no namespace names (:browser-build/unnamed-stylesheets) and a
-   rebundle that failed (:browser-build/bundle-failed) are written to it."
+   :log: the app's log function, (log level event data), made by groundwork-logs:
+   a stylesheet no namespace names (:groundwork-browser-build/unnamed-stylesheets) and a
+   rebundle that failed (:groundwork-browser-build/bundle-failed) are written to it."
   (into [:map {:closed true}]
         (concat build-entries
-                [[:log [fn? {:error/message "should be the app's log function, made by logbook"}]]
+                [[:log [fn? {:error/message "should be the app's log function, made by groundwork-logs"}]]
                  [:preloads [:vector :symbol]]
                  [:devtools-host :string]
                  [:devtools-port [:int {:min 0}]]
@@ -188,10 +188,10 @@
       {:silenced-warnings [(str "silenced and among :warnings-as-errors: " (vec both))]})))
 
 (defn- check-build-options [shape options]
-  (check-data-for-shape "The options" :browser-build/bad-options shape options)
+  (check-data-for-shape "The options" :groundwork-browser-build/bad-options shape options)
   (when-let [errors (find-warnings-both-silenced-and-stopping options)]
     (throw (ex-info (str "The options have problems: " (pr-str errors))
-                    {:type :browser-build/bad-options :errors errors})))
+                    {:type :groundwork-browser-build/bad-options :errors errors})))
   options)
 
 (defn check-watch-options [options]

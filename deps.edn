@@ -1,6 +1,6 @@
 ;; browser-build: what the browser shows, built. The app's ClojureScript compiled by
 ;; shadow-cljs (watched in development, built once for a release) and the
-;; stylesheets its namespaces name, bundled. One tree: source-code/browser_build/.
+;; stylesheets its namespaces name, bundled. One tree: source-code/groundwork_browser_build/.
 ;;
 ;; Only to build, never in production: an app takes browser-build in the aliases it
 ;; builds with, never in its :deps, so its running server has no shadow-cljs.

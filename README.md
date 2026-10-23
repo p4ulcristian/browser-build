@@ -15,15 +15,15 @@ prefixes added, nothing minified); with `:css nil`, it is written as the
 files are.
 
 ```clojure
-io.github.p4ulcristian/browser-build {:git/tag "v0.4.4" :git/sha "f69ed00"}
+io.github.p4ulcristian/groundwork-browser-build {:git/tag "v0.4.4" :git/sha "f69ed00"}
 ```
 
 Needs only shadow-cljs, malli and jsonista (and, with `:css`, the
 lightningcss program it downloads itself; no node), and only to build: take browser-build in the aliases you
 build with, never in `:deps`, so production runs without either. One public
-namespace, `browser-build.api`, with a `.clj` half (the build, the macro) and a
+namespace, `groundwork-browser-build.api`, with a `.clj` half (the build, the macro) and a
 `.cljs` half (for the browser's code to require); its part is
-`browser-build.stylesheets`.
+`groundwork-browser-build.stylesheets`.
 
 ## The api
 
@@ -37,9 +37,9 @@ namespace, `browser-build.api`, with a `.clj` half (the build, the macro) and a
 
 ```clojure
 ;; deps.edn: the build aliases, never :deps
-:browser-build   {:extra-deps {io.github.p4ulcristian/browser-build {:git/tag "v0.4.4" :git/sha "f69ed00"}}}
-:browser-release {:extra-deps {io.github.p4ulcristian/browser-build {:git/tag "v0.4.4" :git/sha "f69ed00"}}
-                  :exec-fn    browser-build.api/build-for-release!
+:browser-build   {:extra-deps {io.github.p4ulcristian/groundwork-browser-build {:git/tag "v0.4.4" :git/sha "f69ed00"}}}
+:browser-release {:extra-deps {io.github.p4ulcristian/groundwork-browser-build {:git/tag "v0.4.4" :git/sha "f69ed00"}}
+                  :exec-fn    groundwork-browser-build.api/build-for-release!
                   :exec-args  {:entry              app.browser.main/start!
                                :modules            {}               ; or {:admin {:entries [app.admin.page] :depends-on #{:main} :start app.admin.page/start!}}, :start nil for none
                                :files-folder       "target/public"
@@ -56,8 +56,8 @@ namespace, `browser-build.api`, with a `.clj` half (the build, the macro) and a
                                :gzip-level         9}}              ; the .gz copies, 1 (fast) to 9 (smallest)
 
 ;; the app's server, in development only: loaded when it watches
-(def watching ((requiring-resolve 'browser-build.api/start-watching!)
-               {:log                       log             ; the app's (logbook's): an unnamed stylesheet, a failed rebundle
+(def watching ((requiring-resolve 'groundwork-browser-build.api/start-watching!)
+               {:log                       log             ; the app's (groundwork-logs's): an unnamed stylesheet, a failed rebundle
                 :entry                     'app.browser.main/start!
                 :modules                   {}
                 :files-folder              "target/public"
@@ -86,7 +86,7 @@ namespace, `browser-build.api`, with a `.clj` half (the build, the macro) and a
 
 ;; the browser's code, src/app/browser/orders/order_card.cljs beside order_card.css
 (ns app.browser.orders.order-card
-  (:require [browser-build.api :as styles]))
+  (:require [groundwork-browser-build.api :as styles]))
 
 (def order-card-styles (styles/use-stylesheet "app/browser/orders/order_card.css"))
 
@@ -102,7 +102,7 @@ The CSS step, for both builds, the app's browsers only:
 
 `:targets` is `<browser> <op> <version>` queries (op `>=` `>` `<=` `<`)
 joined by commas, each browser one lightningcss knows (browserslist's
-names and aliases, `browser-build.lightningcss/browsers`, any case).
+names and aliases, `groundwork-browser-build.lightningcss/browsers`, any case).
 browser-build reads them itself before lightningcss runs, which aborts
 on a query it can't read: anything else (a browser it doesn't know, an
 exact version, a browserslist keyword such as `defaults`) is refused
@@ -114,18 +114,18 @@ once per platform from npm's registry (the `lightningcss-cli-<platform>`
 tarball, read on the JVM), within `:lightningcss-download-timeout-ms`, is
 kept in the cache folder, `<cache-folder>/lightningcss/<version>/<platform>/`,
 and is checked when downloaded and every time it runs; a platform the
-pin doesn't name (`:browser-build/lightningcss-no-platform`), a download
-past its time (`:browser-build/lightningcss-download-timed-out`), a
-checksum that differs (`:browser-build/lightningcss-checksum`) or
-lightningcss's own refusal (`:browser-build/lightningcss-failed`) stops
+pin doesn't name (`:groundwork-browser-build/lightningcss-no-platform`), a download
+past its time (`:groundwork-browser-build/lightningcss-download-timed-out`), a
+checksum that differs (`:groundwork-browser-build/lightningcss-checksum`) or
+lightningcss's own refusal (`:groundwork-browser-build/lightningcss-failed`) stops
 the build, named. Each file
 in a bundle follows a `/*! path */` comment naming it, which lightningcss
 keeps ([why](decisions/2026-10-23-stylesheets-are-rewritten-for-the-apps-browsers-by-a-pinned-lightningcss.md)).
 
 browser-build prints nothing: while watching, a stylesheet no namespace names
-(`:browser-build/unnamed-stylesheets`) and a failed rebundle
-(`:browser-build/bundle-failed`) go to the app's log, `(log level event data)` as
-[logbook](https://github.com/p4ulcristian/logbook) makes it, under `:log`. A
+(`:groundwork-browser-build/unnamed-stylesheets`) and a failed rebundle
+(`:groundwork-browser-build/bundle-failed`) go to the app's log, `(log level event data)` as
+[groundwork-logs](https://github.com/p4ulcristian/groundwork-logs) makes it, under `:log`. A
 release build takes none: it stops on what a watch warns about
 ([why](decisions/2026-10-22-the-app-passes-its-log.md)).
 

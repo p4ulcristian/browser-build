@@ -1,4 +1,4 @@
-(ns browser-build.lightningcss
+(ns groundwork-browser-build.lightningcss
   "The CSS step: each bundle rewritten by lightningcss for the browsers
    the app supports (nesting flattened, -webkit- prefixes added, nothing
    minified). lightningcss is a program, not a library: browser-build pins
@@ -123,19 +123,19 @@
                    (catch TimeoutException _
                      (.cancel sending true)
                      (throw (ex-info (str "lightningcss wasn't downloaded within " timeout-ms " ms: " address)
-                                     {:type :browser-build/lightningcss-download-timed-out :address address :timeout-ms timeout-ms})))
+                                     {:type :groundwork-browser-build/lightningcss-download-timed-out :address address :timeout-ms timeout-ms})))
                    (catch ExecutionException e
                      (let [cause (.getCause e)]
                        (throw (if (instance? HttpTimeoutException cause)   ; connecting took too long
                                 (ex-info (str "lightningcss wasn't downloaded within " timeout-ms " ms: " address)
-                                         {:type :browser-build/lightningcss-download-timed-out :address address :timeout-ms timeout-ms}
+                                         {:type :groundwork-browser-build/lightningcss-download-timed-out :address address :timeout-ms timeout-ms}
                                          cause)
                                 (ex-info (str "lightningcss wasn't downloaded: " address ": " (ex-message cause))
-                                         {:type :browser-build/lightningcss-not-downloaded :address address}
+                                         {:type :groundwork-browser-build/lightningcss-not-downloaded :address address}
                                          cause))))))]
     (when-not (= 200 (.statusCode response))
       (throw (ex-info (str "lightningcss wasn't downloaded: " address " answered " (.statusCode response))
-                      {:type :browser-build/lightningcss-not-downloaded :address address :status (.statusCode response)})))))
+                      {:type :groundwork-browser-build/lightningcss-not-downloaded :address address :status (.statusCode response)})))))
 
 (defn- read-tar-field [^bytes header from to]
   (let [end (or (first (filter #(zero? (aget header %)) (range from to))) to)]
@@ -176,7 +176,7 @@
     (when-not (= sha256 actual)
       (throw (ex-info (str "lightningcss " version " for " platform " has the sha256 " actual
                            ", not the pinned " sha256 " (" file ")")
-                      {:type :browser-build/lightningcss-checksum :platform platform :version version
+                      {:type :groundwork-browser-build/lightningcss-checksum :platform platform :version version
                        :expected sha256 :actual actual :file (str file)})))))
 
 (defn find-program!
@@ -191,7 +191,7 @@
     (when-not pinned
       (throw (ex-info (str "No lightningcss pinned for this platform, " (or platform (str (System/getProperty "os.name") " " (System/getProperty "os.arch")))
                            ": browser-build pins it for " (vec (sort (keys sha256))))
-                      {:type :browser-build/lightningcss-no-platform :platform platform :pinned (vec (sort (keys sha256)))})))
+                      {:type :groundwork-browser-build/lightningcss-no-platform :platform platform :pinned (vec (sort (keys sha256)))})))
     (let [{:keys [package program]} (get platforms platform)
           folder  (io/file cache-folder "lightningcss" version platform)
           file    (io/file folder program)]
@@ -204,7 +204,7 @@
             (download! (make-tarball-address package version) tarball download-timeout-ms)
             (when-not (copy-entry-of-tarball! tarball (str "package/" program) fresh)
               (throw (ex-info (str "lightningcss " version "'s " package " has no package/" program)
-                              {:type :browser-build/lightningcss-not-downloaded :package package :version version})))
+                              {:type :groundwork-browser-build/lightningcss-not-downloaded :package package :version version})))
             (check-program! fresh pinned platform version)
             (.setExecutable fresh true)
             (Files/move (.toPath fresh) (.toPath file) (into-array CopyOption [StandardCopyOption/ATOMIC_MOVE]))
@@ -232,6 +232,6 @@
     ;; its own words first: a program that failed may not have read all it was given
     (when-not (zero? exit)
       (throw (ex-info (str "lightningcss failed (" exit "): " (str/trim @errors))
-                      {:type :browser-build/lightningcss-failed :exit exit :errors @errors})))
+                      {:type :groundwork-browser-build/lightningcss-failed :exit exit :errors @errors})))
     @writing
     out))

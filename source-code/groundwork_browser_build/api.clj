@@ -1,13 +1,13 @@
-(ns browser-build.api
+(ns groundwork-browser-build.api
   "The browser's code, built by shadow-cljs from a build browser-build writes as
    data; the app gives its entry (the function the page runs) and every
-   option (browser-build.settings: every key required, none filled in). And the
+   option (groundwork-browser-build.settings: every key required, none filled in). And the
    macro a namespace names its stylesheets with, which the build bundles.
 
      ;; development: compiles, then again on every save, and swaps the new
      ;; code into open tabs (the app's server starts it when it watches)
      (def watching (browser-build/start-watching!
-                    {:log log                                  ; the app's (logbook's)
+                    {:log log                                  ; the app's (groundwork-logs's)
                      :entry 'app.browser.main/start! :modules {} :files-folder \"target/public\"
                      :cache-folder \".shadow-cljs\" :compile-threads 4 :output-feature-set :es2020
                      :resolve {} :closure-defines {} :warnings-as-errors #{} :silenced-warnings #{}
@@ -23,7 +23,7 @@
      ;; manifest for each, which the page shell reads; and a .js and a
      ;; .css for each module loaded on demand (:modules)
 
-     ;; in the app's browser code (browser-build.api's ClojureScript half):
+     ;; in the app's browser code (groundwork-browser-build.api's ClojureScript half):
      (def order-card-styles (styles/use-stylesheet \"app/orders/order_card.css\"))
      (styles/load-module! {\"admin\" \"/css/admin.3F9A….css\"} \"admin\")   ; its stylesheet, then its code
 
@@ -41,9 +41,9 @@
    [shadow.cljs.devtools.server.common :as shadow-common]
    [shadow.cljs.devtools.server.runtime :as shadow-runtime]
    [shadow.runtime.services :as shadow-services]
-   [browser-build.npm :as npm]
-   [browser-build.settings :as settings]
-   [browser-build.stylesheets :as stylesheets])
+   [groundwork-browser-build.npm :as npm]
+   [groundwork-browser-build.settings :as settings]
+   [groundwork-browser-build.stylesheets :as stylesheets])
   (:import
    (java.io OutputStream)
    (java.util.zip CRC32 Deflater DeflaterOutputStream)))
@@ -126,7 +126,7 @@
 (defn start-watching!
   "Starts shadow-cljs in this JVM and watches the build: compiled now,
    again on every save, the new code swapped into open tabs. The options
-   are browser-build.settings/watch-options-shape's, every key required, checked
+   are groundwork-browser-build.settings/watch-options-shape's, every key required, checked
    first; browser-build's own messages (a stylesheet no namespace names, a
    rebundle that failed) go to their :log, the app's. Returns once the
    first compile is done."
@@ -200,8 +200,8 @@
    code from must be installed as the app's own dependency (in
    package.json's dependencies, not devDependencies): one missing, or
    installed only for development, stops the build, named
-   (browser-build.npm). A stylesheet beside the namespaces that none names stops it.
-   The options are browser-build.settings/release-options-shape's, every key
+   (groundwork-browser-build.npm). A stylesheet beside the namespaces that none names stops it.
+   The options are groundwork-browser-build.settings/release-options-shape's, every key
    required, checked first. For the deploy: clojure -X:browser-release
    :entry … :files-folder … (and every other option)."
   [{:keys [files-folder source-maps? gzip-level] :as options}]
@@ -226,10 +226,10 @@
    namespaces are found. Returns the path."
   [path]
   (when-not (string? path)
-    (throw (ex-info "use-stylesheet takes the path as text, written out" {:type :browser-build/bad-path :path path})))
+    (throw (ex-info "use-stylesheet takes the path as text, written out" {:type :groundwork-browser-build/bad-path :path path})))
   (when-not (io/resource path)
     (throw (ex-info (str "No stylesheet " path " on the classpath (named in " analyzer/*cljs-ns* ")")
-                    {:type :browser-build/missing-file :path path :ns analyzer/*cljs-ns*})))
-  (swap! env/*compiler* update-in [:cljs.analyzer/namespaces analyzer/*cljs-ns* :browser-build/stylesheets]
+                    {:type :groundwork-browser-build/missing-file :path path :ns analyzer/*cljs-ns*})))
+  (swap! env/*compiler* update-in [:cljs.analyzer/namespaces analyzer/*cljs-ns* :groundwork-browser-build/stylesheets]
          (fn [paths] (if (some #{path} paths) paths (conj (or paths []) path))))
   path)

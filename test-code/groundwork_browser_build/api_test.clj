@@ -1,4 +1,4 @@
-(ns browser-build.api-test
+(ns groundwork-browser-build.api-test
   "Release builds of small entries: the code compiles, optimized, into one
    file with a hashed name and its manifest; the named stylesheet becomes
    the bundle; a missing or an unnamed stylesheet stops the build. Every
@@ -9,8 +9,8 @@
    [clojure.java.io :as io]
    [clojure.string :as str]
    [clojure.test :refer [deftest is testing]]
-   [browser-build.api :as browser-build]
-   [browser-build.lightningcss :as lightningcss])
+   [groundwork-browser-build.api :as browser-build]
+   [groundwork-browser-build.lightningcss :as lightningcss])
   (:import
    (java.net ServerSocket)
    (java.nio.file Files)
@@ -19,7 +19,7 @@
 
 (deftest the-names-of-the-api
   (is (= '#{make-build start-watching! stop-watching! build-for-release! use-stylesheet}
-         (set (keys (ns-publics 'browser-build.api))))))
+         (set (keys (ns-publics 'groundwork-browser-build.api))))))
 
 (defn- make-folder [] (str (Files/createTempDirectory "browser-build-build" (make-array FileAttribute 0))))
 
@@ -47,7 +47,7 @@
 
 (defn- make-watch-options []
   {:log                       log
-   :entry                     'browser-build.watch-check.entry/start!
+   :entry                     'groundwork-browser-build.watch-check.entry/start!
    :modules                   {}
    :files-folder              (make-folder)
    :cache-folder              (make-folder)
@@ -79,7 +79,7 @@
     (slurp in)))
 
 (deftest a-release-build
-  (let [{:keys [files-folder] :as options} (make-release-options 'browser-build.build-check/start!)]
+  (let [{:keys [files-folder] :as options} (make-release-options 'groundwork-browser-build.build-check/start!)]
     (with-out-str (browser-build/build-for-release! options))
     (let [[{:keys [module-id output-name]}] (edn/read-string (slurp (io/file files-folder "js" "manifest.edn")))
           js (io/file files-folder "js" output-name)]
@@ -96,10 +96,10 @@
       (is (= (slurp css) (gunzip (str css ".gz")))))))
 
 (deftest a-release-build-with-a-module-loaded-on-demand
-  (let [{:keys [files-folder] :as options} (assoc (make-release-options 'browser-build.modules-check.main/start!)
-                                                  :modules {:admin {:entries    '[browser-build.modules-check.admin]
+  (let [{:keys [files-folder] :as options} (assoc (make-release-options 'groundwork-browser-build.modules-check.main/start!)
+                                                  :modules {:admin {:entries    '[groundwork-browser-build.modules-check.admin]
                                                                     :depends-on #{:main}
-                                                                    :start      'browser-build.modules-check.admin/start!}})]
+                                                                    :start      'groundwork-browser-build.modules-check.admin/start!}})]
     (with-out-str (browser-build/build-for-release! options))
     (let [js-files  (edn/read-string (slurp (io/file files-folder "js" "manifest.edn")))
           css-files (edn/read-string (slurp (io/file files-folder "css" "manifest.edn")))
@@ -144,7 +144,7 @@
        (catch Exception e (find-type-of-cause e))))
 
 (deftest a-release-build-rewrites-its-stylesheets-for-the-apps-browsers
-  (let [{:keys [files-folder cache-folder] :as options} (assoc (make-release-options 'browser-build.css-check.entry/start!)
+  (let [{:keys [files-folder cache-folder] :as options} (assoc (make-release-options 'groundwork-browser-build.css-check.entry/start!)
                                                               :css {:targets targets})]
     (with-out-str (browser-build/build-for-release! options))
     (let [[{:keys [output-name]}] (edn/read-string (slurp (io/file files-folder "css" "manifest.edn")))
@@ -161,39 +161,39 @@
           program      (io/file cache-folder "lightningcss" (:version lightningcss/pinned) (lightningcss/find-platform)
                                 (.getName (io/file @downloaded)))]
       (spit program "not the pinned program")
-      (is (= :browser-build/lightningcss-checksum
-             (find-release-refusal (assoc (make-release-options 'browser-build.css-check.entry/start!)
+      (is (= :groundwork-browser-build/lightningcss-checksum
+             (find-release-refusal (assoc (make-release-options 'groundwork-browser-build.css-check.entry/start!)
                                           :cache-folder cache-folder :css {:targets targets}))))))
   (testing "a platform the pins don't name stops, named, before anything is downloaded"
     (let [cache-folder (make-folder)]
-      (is (= :browser-build/lightningcss-no-platform
+      (is (= :groundwork-browser-build/lightningcss-no-platform
              (find-type-of-cause (try (lightningcss/find-program! cache-folder 120000
                                                                   (update lightningcss/pinned :sha256 dissoc (lightningcss/find-platform)))
                                       (catch Exception e e)))))
       (is (not (.exists (io/file cache-folder "lightningcss"))))))
   (testing "a download past its time limit stops the build, named"
-    (is (= :browser-build/lightningcss-download-timed-out
-           (find-release-refusal (assoc (make-release-options 'browser-build.css-check.entry/start!)
+    (is (= :groundwork-browser-build/lightningcss-download-timed-out
+           (find-release-refusal (assoc (make-release-options 'groundwork-browser-build.css-check.entry/start!)
                                         :css {:targets targets} :lightningcss-download-timeout-ms 1)))))
   (testing "lightningcss's own refusal stops the build, with its words"
-    (is (= :browser-build/lightningcss-failed
+    (is (= :groundwork-browser-build/lightningcss-failed
            (find-type-of-cause (try (lightningcss/rewrite-css "false" targets ".a { color: red }") (catch Exception e e))))
         "a program that exits with an error")))
 
 (deftest the-css-step-is-written-out
   (testing "the app writes only its targets: the program is browser-build's pin"
     (is (= {:css {:lightningcss ["disallowed key"]}}
-           (:errors (find-refusal #(browser-build/make-build :release (assoc (make-release-options 'browser-build.build-check/start!)
+           (:errors (find-refusal #(browser-build/make-build :release (assoc (make-release-options 'groundwork-browser-build.build-check/start!)
                                                                         :css {:targets targets :lightningcss lightningcss/pinned}))))))
     (is (= {:css {:targets ["missing required key"]}}
-           (:errors (find-refusal #(browser-build/make-build :release (assoc (make-release-options 'browser-build.build-check/start!)
+           (:errors (find-refusal #(browser-build/make-build :release (assoc (make-release-options 'groundwork-browser-build.build-check/start!)
                                                                         :css {}))))))
     (is (= {:lightningcss-download-timeout-ms ["missing required key"]}
-           (:errors (find-refusal #(browser-build/make-build :release (dissoc (make-release-options 'browser-build.build-check/start!)
+           (:errors (find-refusal #(browser-build/make-build :release (dissoc (make-release-options 'groundwork-browser-build.build-check/start!)
                                                                         :lightningcss-download-timeout-ms)))))
         "the download's time limit is written out, with :css nil too"))
   (testing "browser-build reads the targets itself, before lightningcss runs (which aborts on what it can't read)"
-    (let [refusal #(:errors (find-refusal (fn [] (browser-build/build-for-release! (assoc (make-release-options 'browser-build.css-check.entry/start!)
+    (let [refusal #(:errors (find-refusal (fn [] (browser-build/build-for-release! (assoc (make-release-options 'groundwork-browser-build.css-check.entry/start!)
                                                                                          :css {:targets %})))))]
       (is (str/starts-with? (first (get-in (refusal "chrome >= 119, nosuch >= 1") [:css :targets]))
                             "names browsers lightningcss doesn't know: [\"nosuch\"]; it knows [\"and_chr\" ")
@@ -209,10 +209,10 @@
 
 (deftest a-missing-stylesheet-stops-the-build
   (is (thrown? Exception
-               (with-out-str (browser-build/build-for-release! (make-release-options 'browser-build.missing-check.entry/start!))))))
+               (with-out-str (browser-build/build-for-release! (make-release-options 'groundwork-browser-build.missing-check.entry/start!))))))
 
 (deftest a-stylesheet-no-namespace-names-stops-a-release
-  (let [message (try (with-out-str (browser-build/build-for-release! (make-release-options 'browser-build.unnamed-check.entry/start!)))
+  (let [message (try (with-out-str (browser-build/build-for-release! (make-release-options 'groundwork-browser-build.unnamed-check.entry/start!)))
                      nil
                      (catch Exception e (pr-str e)))]
     (is (re-find #"forgotten\.css" (str message)))
@@ -221,22 +221,22 @@
 (deftest every-option-is-required
   (testing "build-for-release! names each missing option, before anything is built"
     (let [{:keys [type errors]} (find-refusal #(browser-build/build-for-release! {:entry 'app.browser.main/start! :files-folder "target/public"}))]
-      (is (= :browser-build/bad-options type))
+      (is (= :groundwork-browser-build/bad-options type))
       (is (= #{:modules :cache-folder :compile-threads :output-feature-set :resolve :closure-defines :warnings-as-errors
                :silenced-warnings :css :lightningcss-download-timeout-ms :source-maps? :gzip-level}
              (set (keys errors))))))
   (testing "start-watching! names each missing option, before shadow-cljs starts"
     (let [{:keys [type errors]} (find-refusal #(browser-build/start-watching! (dissoc (make-watch-options) :devtools-host :hud :nrepl :log)))]
-      (is (= :browser-build/bad-options type))
+      (is (= :groundwork-browser-build/bad-options type))
       (is (= #{:devtools-host :hud :nrepl :log} (set (keys errors))) "the app's log among them")))
   (testing "an unknown option too"
-    (is (= {:type :browser-build/bad-options :errors {:gzip-levle ["disallowed key"]}}
-           (find-refusal #(browser-build/build-for-release! (assoc (make-release-options 'browser-build.build-check/start!) :gzip-levle 9))))))
+    (is (= {:type :groundwork-browser-build/bad-options :errors {:gzip-levle ["disallowed key"]}}
+           (find-refusal #(browser-build/build-for-release! (assoc (make-release-options 'groundwork-browser-build.build-check/start!) :gzip-levle 9))))))
   (testing "the build says what the options say"
     (let [build (browser-build/make-build :watch (assoc (make-watch-options) :hot-reload? false :hud #{} :reload-strategy :full))]
       (is (= {:autoload false :hud false :reload-strategy :full}
              (select-keys (:devtools build) [:autoload :hud :reload-strategy]))))
-    (is (= :advanced (get-in (browser-build/make-build :release (make-release-options 'browser-build.build-check/start!))
+    (is (= :advanced (get-in (browser-build/make-build :release (make-release-options 'groundwork-browser-build.build-check/start!))
                              [:compiler-options :optimizations])))
     (is (= {:main  {:init-fn 'app.main/start!}
             :admin {:entries '[app.admin] :depends-on #{:main} :init-fn 'app.admin/start!}
@@ -249,7 +249,7 @@
            (:errors (find-refusal #(browser-build/make-build :release (assoc (make-release-options 'app.main/start!)
                                                                         :modules {:admin {:entries '[app.admin] :depends-on #{:main}}})))))
         "a module names its start, nil for none")
-    (let [build (browser-build/make-build :release (assoc (make-release-options 'browser-build.build-check/start!)
+    (let [build (browser-build/make-build :release (assoc (make-release-options 'groundwork-browser-build.build-check/start!)
                                                      :resolve {"process" {:target :file :file "shim.js"} "@maptiler/sdk" false}
                                                      :closure-defines '{malli.registry/type "custom"}
                                                      :warnings-as-errors #{:infer-warning}))]
@@ -258,30 +258,30 @@
       (is (= #{:infer-warning} (get-in build [:compiler-options :warnings-as-errors]))))
     (testing "silenced warnings are shadow-cljs's :warnings, each false; preloads only while watching"
       (is (= {:unreachable-code false}
-             (get-in (browser-build/make-build :release (assoc (make-release-options 'browser-build.build-check/start!)
+             (get-in (browser-build/make-build :release (assoc (make-release-options 'groundwork-browser-build.build-check/start!)
                                                           :silenced-warnings #{:unreachable-code}))
                      [:compiler-options :warnings])))
-      (is (= {} (get-in (browser-build/make-build :release (make-release-options 'browser-build.build-check/start!))
+      (is (= {} (get-in (browser-build/make-build :release (make-release-options 'groundwork-browser-build.build-check/start!))
                         [:compiler-options :warnings])))
       (is (= '[app.dev.tools] (get-in (browser-build/make-build :watch (assoc (make-watch-options) :preloads '[app.dev.tools]))
                                       [:devtools :preloads])))
       (is (= {:preloads ["disallowed key"]}
-             (:errors (find-refusal #(browser-build/make-build :release (assoc (make-release-options 'browser-build.build-check/start!)
+             (:errors (find-refusal #(browser-build/make-build :release (assoc (make-release-options 'groundwork-browser-build.build-check/start!)
                                                                           :preloads '[app.dev.tools])))))
           "a release has no preloads")
       (is (= {:silenced-warnings ["silenced and among :warnings-as-errors: [:infer-warning]"]}
-             (:errors (find-refusal #(browser-build/make-build :release (assoc (make-release-options 'browser-build.build-check/start!)
+             (:errors (find-refusal #(browser-build/make-build :release (assoc (make-release-options 'groundwork-browser-build.build-check/start!)
                                                                           :warnings-as-errors #{:infer-warning}
                                                                           :silenced-warnings #{:infer-warning})))))
           "a warning is silenced or stops the build, not both"))
-    (is (= :browser-build/bad-options
-           (:type (find-refusal #(browser-build/make-build :release (assoc (make-release-options 'browser-build.build-check/start!)
+    (is (= :groundwork-browser-build/bad-options
+           (:type (find-refusal #(browser-build/make-build :release (assoc (make-release-options 'groundwork-browser-build.build-check/start!)
                                                                       :resolve {"x" {:target :file}})))))
         "a replacement says what it is replaced with")))
 
-(def ^:private entry-file (io/file "test-code/browser_build/watch_check/entry.cljs"))
-(def ^:private css-file (io/file "test-code/browser_build/watch_check/entry.css"))
-(def ^:private stray-file (io/file "test-code/browser_build/watch_check/stray.css"))
+(def ^:private entry-file (io/file "test-code/groundwork_browser_build/watch_check/entry.cljs"))
+(def ^:private css-file (io/file "test-code/groundwork_browser_build/watch_check/entry.css"))
+(def ^:private stray-file (io/file "test-code/groundwork_browser_build/watch_check/stray.css"))
 
 (defn- wait-until [f]
   (loop [n 0]
@@ -302,7 +302,7 @@
     (try
       (let [watching (binding [*out* output] (browser-build/start-watching! options))
             bundle   (io/file files-folder "css" "main.css")
-            code     (io/file files-folder "js" "cljs-runtime" "browser_build.watch_check.entry.js")]
+            code     (io/file files-folder "js" "cljs-runtime" "groundwork_browser_build.watch_check.entry.js")]
         (try
           (testing "the first compile: the page's code and its bundle, through the CSS step"
             (is (.exists (io/file files-folder "js" "main.js")))
@@ -318,7 +318,7 @@
             (spit stray-file ".stray { color: red; }\n")
             (spit entry-file (str/replace entry-text "watch-check-one" "watch-check-two"))
             (is (wait-until #(str/includes? (slurp code) "watch-check-two")))
-            (is (wait-until #(some #{[:warn :browser-build/unnamed-stylesheets {:browser-build/stylesheets ["browser_build/watch_check/stray.css"]}]}
+            (is (wait-until #(some #{[:warn :groundwork-browser-build/unnamed-stylesheets {:groundwork-browser-build/stylesheets ["groundwork_browser_build/watch_check/stray.css"]}]}
                                    @lines))))
           (finally
             (binding [*out* output] (is (= :stopped (browser-build/stop-watching! watching)))))))

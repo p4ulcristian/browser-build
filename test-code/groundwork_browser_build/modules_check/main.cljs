@@ -1,9 +1,9 @@
-(ns browser-build.modules-check.main
+(ns groundwork-browser-build.modules-check.main
   "The main module of a build with a module loaded on demand: its own
    stylesheet, and the admin module loaded with its stylesheet first."
-  (:require [browser-build.api :as styles]))
+  (:require [groundwork-browser-build.api :as styles]))
 
-(def ^:private main-styles (styles/use-stylesheet "browser_build/modules_check/main.css"))
+(def ^:private main-styles (styles/use-stylesheet "groundwork_browser_build/modules_check/main.css"))
 
 (defn start! []
   (-> (styles/load-module! {"admin" "/css/admin.css"} "admin")
