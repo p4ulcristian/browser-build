@@ -1,22 +1,28 @@
 (ns browser-build.lightningcss
   "The CSS step: each bundle rewritten by lightningcss for the browsers
    the app supports (nesting flattened, -webkit- prefixes added, nothing
-   minified). lightningcss is a program, not a library: the build's
-   :css :lightningcss pins its version and the sha256 of the program for
-   each platform the app builds on. It is downloaded once per platform,
+   minified). lightningcss is a program, not a library: browser-build pins
+   its version and the sha256 of the program for each platform (pinned),
+   as it pins shadow-cljs; upgrading it is a browser-build release. The
+   app's :css says only its :targets, which browser-build reads itself
+   first (check-targets): lightningcss aborts, dumping core, on a query it
+   can't read. It is downloaded once per platform, within the build's
+   :lightningcss-download-timeout-ms,
    from npm's registry, as the tarball npm itself would fetch
    (lightningcss-cli-<platform>), with no node; kept in the build's cache
    folder, <cache-folder>/lightningcss/<version>/<platform>/; and checked
    against its sha256 when downloaded and every time it runs. A platform
-   the pins don't name, or a program whose checksum differs, stops the
-   build, named."
+   the pins don't name, a download past its time limit, or a program whose
+   checksum differs, stops the build, named."
   (:require
    [clojure.java.io :as io]
    [clojure.string :as str])
   (:import
    (java.io ByteArrayOutputStream InputStream)
    (java.net URI)
-   (java.net.http HttpClient HttpClient$Redirect HttpRequest HttpResponse$BodyHandlers)
+   (java.net.http HttpClient HttpClient$Redirect HttpRequest HttpResponse$BodyHandlers HttpTimeoutException)
+   (java.time Duration)
+   (java.util.concurrent ExecutionException TimeUnit TimeoutException)
    (java.nio.file CopyOption Files StandardCopyOption)
    (java.nio.file.attribute FileAttribute)
    (java.security MessageDigest)
@@ -31,6 +37,46 @@
    "darwin-x64"   {:package "lightningcss-cli-darwin-x64"      :program "lightningcss"}
    "darwin-arm64" {:package "lightningcss-cli-darwin-arm64"    :program "lightningcss"}
    "windows-x64"  {:package "lightningcss-cli-win32-x64-msvc"  :program "lightningcss.exe"}})
+
+(def pinned
+  "The lightningcss browser-build runs: its version, and the sha256 of its
+   program on each platform (platforms)."
+  {:version "1.33.0"
+   :sha256  {"linux-x64"    "e7175508098a87b4e9788a695e9a4d780db727f317f69c1c452d6d0db1fc9817"
+             "linux-arm64"  "aad374206d8e64991cccb94e12e01951df7370814bcbe4bd6dee74fa52282500"
+             "darwin-x64"   "348fd8afa8dc5c29a060f0dd85c78af1dc4ba4d9e5eeff3d1a8af9a992de6dc6"
+             "darwin-arm64" "c6a00cbd56610472494060d6b53b74ffd19442c6979b9346667e9abadd2c6c45"
+             "windows-x64"  "be3ed8a564eea2cf8e8d0a92d807834ef00380b6889566b35ef2c68ff6426b34"}})
+
+(def browsers
+  "The browser names the targets may use: browserslist's, each of which
+   the pinned lightningcss knows (an unknown one makes it abort), and its
+   aliases."
+  #{"chrome" "safari" "firefox" "edge" "opera" "ios_saf" "and_chr" "and_ff" "and_uc" "and_qq"
+    "android" "samsung" "op_mob" "ie" "ie_mob" "bb" "baidu" "kaios"
+    "ios" "fx" "ff" "explorer" "blackberry" "explorermobile" "operamobile"
+    "chromeandroid" "firefoxandroid" "ucandroid" "qqandroid"})
+
+(def ^:private target-query #"(?i)^\s*([a-z_]+)\s*(>=|<=|>|<)\s*(\d+(?:\.\d+){0,2})\s*$")
+
+(defn check-targets
+  "The problem with a targets text, or nil: browser-build reads only
+   queries \"<browser> <op> <version>\", op >= > <= <, joined by commas
+   (\"chrome >= 119, safari >= 16.4, firefox >= 128\"), each browser one
+   of browsers. Anything else would make lightningcss abort (a browser it
+   doesn't know, an exact version it doesn't know, a query it can't
+   parse), so it is refused here, named, before lightningcss runs."
+  [targets]
+  (let [queries  (str/split targets #"," -1)
+        unread   (remove #(re-matches target-query %) queries)
+        unknown  (sort (distinct (for [query queries
+                                       :let [[_ browser] (re-matches target-query query)]
+                                       :when (and browser (not (contains? browsers (str/lower-case browser))))]
+                                   browser)))]
+    (cond
+      (seq unread)  (str "browser-build reads only \"<browser> >= <version>\" queries (or > <= <), joined by commas, not "
+                         (pr-str (mapv str/trim unread)))
+      (seq unknown) (str "names browsers lightningcss doesn't know: " (pr-str (vec unknown)) "; it knows " (pr-str (vec (sort browsers)))))))
 
 (defn find-platform
   "This machine's platform, by browser-build's name (platforms), or nil for
@@ -62,10 +108,31 @@
 (defn- make-tarball-address [package version]
   (str "https://registry.npmjs.org/" package "/-/" package "-" version ".tgz"))
 
-(defn- download! [address file]
-  (let [client   (-> (HttpClient/newBuilder) (.followRedirects HttpClient$Redirect/NORMAL) (.build))
+(defn- download!
+  "The tarball at address into file, whole, within timeout-ms (connecting,
+   the answer and its body); past it, the download is stopped, named."
+  [address file timeout-ms]
+  (let [client   (-> (HttpClient/newBuilder)
+                     (.followRedirects HttpClient$Redirect/NORMAL)
+                     (.connectTimeout (Duration/ofMillis timeout-ms))
+                     (.build))
         request  (-> (HttpRequest/newBuilder (URI. address)) (.GET) (.build))
-        response (.send client request (HttpResponse$BodyHandlers/ofFile (.toPath (io/file file))))]
+        sending  (.sendAsync client request (HttpResponse$BodyHandlers/ofFile (.toPath (io/file file))))
+        response (try
+                   (.get sending timeout-ms TimeUnit/MILLISECONDS)
+                   (catch TimeoutException _
+                     (.cancel sending true)
+                     (throw (ex-info (str "lightningcss wasn't downloaded within " timeout-ms " ms: " address)
+                                     {:type :browser-build/lightningcss-download-timed-out :address address :timeout-ms timeout-ms})))
+                   (catch ExecutionException e
+                     (let [cause (.getCause e)]
+                       (throw (if (instance? HttpTimeoutException cause)   ; connecting took too long
+                                (ex-info (str "lightningcss wasn't downloaded within " timeout-ms " ms: " address)
+                                         {:type :browser-build/lightningcss-download-timed-out :address address :timeout-ms timeout-ms}
+                                         cause)
+                                (ex-info (str "lightningcss wasn't downloaded: " address ": " (ex-message cause))
+                                         {:type :browser-build/lightningcss-not-downloaded :address address}
+                                         cause))))))]
     (when-not (= 200 (.statusCode response))
       (throw (ex-info (str "lightningcss wasn't downloaded: " address " answered " (.statusCode response))
                       {:type :browser-build/lightningcss-not-downloaded :address address :status (.statusCode response)})))))
@@ -113,16 +180,17 @@
                        :expected sha256 :actual actual :file (str file)})))))
 
 (defn find-program!
-  "The path of the pinned lightningcss for this machine, checked against
-   its sha256: from the cache folder, or downloaded into it first. Stops,
-   named, on a platform the pins don't name, a download that fails, or a
-   checksum that differs."
-  [cache-folder {:keys [version sha256]}]
+  "The path of the pinned lightningcss for this machine (pins, pinned's
+   shape: browser-build's own in a build), checked against its sha256:
+   from the cache folder, or downloaded into it first, within
+   download-timeout-ms. Stops, named, on a platform the pins don't name, a
+   download that fails or runs past its time, or a checksum that differs."
+  [cache-folder download-timeout-ms {:keys [version sha256]}]
   (let [platform (find-platform)
         pinned   (get sha256 platform)]
     (when-not pinned
       (throw (ex-info (str "No lightningcss pinned for this platform, " (or platform (str (System/getProperty "os.name") " " (System/getProperty "os.arch")))
-                           ": :css :lightningcss :sha256 names " (vec (sort (keys sha256))))
+                           ": browser-build pins it for " (vec (sort (keys sha256))))
                       {:type :browser-build/lightningcss-no-platform :platform platform :pinned (vec (sort (keys sha256)))})))
     (let [{:keys [package program]} (get platforms platform)
           folder  (io/file cache-folder "lightningcss" version platform)
@@ -133,7 +201,7 @@
               tarball (io/file work "package.tgz")
               fresh   (io/file work program)]
           (try
-            (download! (make-tarball-address package version) tarball)
+            (download! (make-tarball-address package version) tarball download-timeout-ms)
             (when-not (copy-entry-of-tarball! tarball (str "package/" program) fresh)
               (throw (ex-info (str "lightningcss " version "'s " package " has no package/" program)
                               {:type :browser-build/lightningcss-not-downloaded :package package :version version})))

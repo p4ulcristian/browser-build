@@ -35,6 +35,7 @@
    :warnings-as-errors #{}
    :silenced-warnings  #{}
    :css                nil
+   :lightningcss-download-timeout-ms 120000
    :source-maps?       false
    :gzip-level         9})
 
@@ -57,6 +58,7 @@
    :warnings-as-errors        #{}
    :silenced-warnings         #{}
    :css                       nil
+   :lightningcss-download-timeout-ms 120000
    :preloads                  []
    :devtools-host             "localhost"
    :devtools-port             0
@@ -119,23 +121,14 @@
           "main knows where the module's hashed file is, for the loader")
       (is (every? #(.exists (io/file files-folder "css" (str (:output-name %) ".gz"))) css-files) "gzipped too"))))
 
-(def ^:private pins
-  "lightningcss 1.33.0, the sha256 of its program on each platform."
-  {:version "1.33.0"
-   :sha256  {"linux-x64"    "e7175508098a87b4e9788a695e9a4d780db727f317f69c1c452d6d0db1fc9817"
-             "linux-arm64"  "aad374206d8e64991cccb94e12e01951df7370814bcbe4bd6dee74fa52282500"
-             "darwin-x64"   "348fd8afa8dc5c29a060f0dd85c78af1dc4ba4d9e5eeff3d1a8af9a992de6dc6"
-             "darwin-arm64" "c6a00cbd56610472494060d6b53b74ffd19442c6979b9346667e9abadd2c6c45"
-             "windows-x64"  "be3ed8a564eea2cf8e8d0a92d807834ef00380b6889566b35ef2c68ff6426b34"}})
-
 (def ^:private targets "chrome >= 119, safari >= 16.4, firefox >= 128")
 
 (def ^:private downloaded
   "The pinned program, downloaded once for the tests that only need it there."
-  (delay (lightningcss/find-program! (make-folder) pins)))
+  (delay (lightningcss/find-program! (make-folder) 120000 lightningcss/pinned)))
 
 (defn- put-program-in! [cache-folder]
-  (let [file (io/file cache-folder "lightningcss" (:version pins) (lightningcss/find-platform)
+  (let [file (io/file cache-folder "lightningcss" (:version lightningcss/pinned) (lightningcss/find-platform)
                       (.getName (io/file @downloaded)))]
     (io/make-parents file)
     (io/copy (io/file @downloaded) file)
@@ -152,7 +145,7 @@
 
 (deftest a-release-build-rewrites-its-stylesheets-for-the-apps-browsers
   (let [{:keys [files-folder cache-folder] :as options} (assoc (make-release-options 'browser-build.css-check.entry/start!)
-                                                              :css {:targets targets :lightningcss pins})]
+                                                              :css {:targets targets})]
     (with-out-str (browser-build/build-for-release! options))
     (let [[{:keys [output-name]}] (edn/read-string (slurp (io/file files-folder "css" "manifest.edn")))
           css (slurp (io/file files-folder "css" output-name))]
@@ -163,40 +156,56 @@
       (is (= css (gunzip (io/file files-folder "css" (str output-name ".gz"))))))
     (is (.exists (io/file cache-folder "lightningcss" "1.33.0" (lightningcss/find-platform)))
         "downloaded into the build's cache folder"))
-  (testing "a checksum that differs stops the build, named"
-    (let [cache-folder (put-program-in! (make-folder))]
+  (testing "a cached program whose checksum differs stops the build, named"
+    (let [cache-folder (put-program-in! (make-folder))
+          program      (io/file cache-folder "lightningcss" (:version lightningcss/pinned) (lightningcss/find-platform)
+                                (.getName (io/file @downloaded)))]
+      (spit program "not the pinned program")
       (is (= :browser-build/lightningcss-checksum
              (find-release-refusal (assoc (make-release-options 'browser-build.css-check.entry/start!)
-                                          :cache-folder cache-folder
-                                          :css {:targets targets
-                                                :lightningcss (assoc-in pins [:sha256 (lightningcss/find-platform)] (apply str (repeat 64 "0")))}))))))
-  (testing "a platform the pins don't name stops the build, named, before anything is downloaded"
+                                          :cache-folder cache-folder :css {:targets targets}))))))
+  (testing "a platform the pins don't name stops, named, before anything is downloaded"
     (let [cache-folder (make-folder)]
       (is (= :browser-build/lightningcss-no-platform
-             (find-release-refusal (assoc (make-release-options 'browser-build.css-check.entry/start!)
-                                          :cache-folder cache-folder
-                                          :css {:targets targets
-                                                :lightningcss (update pins :sha256 dissoc (lightningcss/find-platform))}))))
+             (find-type-of-cause (try (lightningcss/find-program! cache-folder 120000
+                                                                  (update lightningcss/pinned :sha256 dissoc (lightningcss/find-platform)))
+                                      (catch Exception e e)))))
       (is (not (.exists (io/file cache-folder "lightningcss"))))))
+  (testing "a download past its time limit stops the build, named"
+    (is (= :browser-build/lightningcss-download-timed-out
+           (find-release-refusal (assoc (make-release-options 'browser-build.css-check.entry/start!)
+                                        :css {:targets targets} :lightningcss-download-timeout-ms 1)))))
   (testing "lightningcss's own refusal stops the build, with its words"
     (is (= :browser-build/lightningcss-failed
-           (find-release-refusal (assoc (make-release-options 'browser-build.css-check.entry/start!)
-                                        :cache-folder (put-program-in! (make-folder))
-                                        :css {:targets "no such browser >= 1" :lightningcss pins}))))))
+           (find-type-of-cause (try (lightningcss/rewrite-css "false" targets ".a { color: red }") (catch Exception e e))))
+        "a program that exits with an error")))
 
 (deftest the-css-step-is-written-out
-  (is (= {:css {:lightningcss {:sha256 {"linux-x64" ["should be a sha256, 64 lowercase hex digits"]}}}}
-         (:errors (find-refusal #(browser-build/make-build :release (assoc (make-release-options 'browser-build.build-check/start!)
-                                                                      :css {:targets targets
-                                                                            :lightningcss {:version "1.33.0" :sha256 {"linux-x64" "abc"}}}))))))
-  (is (= {:css {:lightningcss {:sha256 {"beos-x64" ["should be either \"darwin-arm64\", \"darwin-x64\", \"linux-arm64\", \"linux-x64\" or \"windows-x64\""]}}}}
-         (:errors (find-refusal #(browser-build/make-build :release (assoc (make-release-options 'browser-build.build-check/start!)
-                                                                      :css {:targets targets
-                                                                            :lightningcss {:version "1.33.0" :sha256 {"beos-x64" (apply str (repeat 64 "a"))}}})))))
-      "a platform browser-build knows")
-  (is (= {:css {:targets ["missing required key"]}}
-         (:errors (find-refusal #(browser-build/make-build :release (assoc (make-release-options 'browser-build.build-check/start!)
-                                                                      :css {:lightningcss pins})))))))
+  (testing "the app writes only its targets: the program is browser-build's pin"
+    (is (= {:css {:lightningcss ["disallowed key"]}}
+           (:errors (find-refusal #(browser-build/make-build :release (assoc (make-release-options 'browser-build.build-check/start!)
+                                                                        :css {:targets targets :lightningcss lightningcss/pinned}))))))
+    (is (= {:css {:targets ["missing required key"]}}
+           (:errors (find-refusal #(browser-build/make-build :release (assoc (make-release-options 'browser-build.build-check/start!)
+                                                                        :css {}))))))
+    (is (= {:lightningcss-download-timeout-ms ["missing required key"]}
+           (:errors (find-refusal #(browser-build/make-build :release (dissoc (make-release-options 'browser-build.build-check/start!)
+                                                                        :lightningcss-download-timeout-ms)))))
+        "the download's time limit is written out, with :css nil too"))
+  (testing "browser-build reads the targets itself, before lightningcss runs (which aborts on what it can't read)"
+    (let [refusal #(:errors (find-refusal (fn [] (browser-build/build-for-release! (assoc (make-release-options 'browser-build.css-check.entry/start!)
+                                                                                         :css {:targets %})))))]
+      (is (str/starts-with? (first (get-in (refusal "chrome >= 119, nosuch >= 1") [:css :targets]))
+                            "names browsers lightningcss doesn't know: [\"nosuch\"]; it knows [\"and_chr\" ")
+          "an unknown browser, named, refused with the options")
+      (is (= ["browser-build reads only \"<browser> >= <version>\" queries (or > <= <), joined by commas, not [\"not dead\" \"safari 16.4\"]"]
+             (get-in (refusal "not dead, safari 16.4, chrome >= 119") [:css :targets]))
+          "a query it doesn't read: an exact version, a browserslist keyword")
+      (is (= ["browser-build reads only \"<browser> >= <version>\" queries (or > <= <), joined by commas, not [\"\"]"]
+             (get-in (refusal "chrome >= 119,, safari >= 16.4") [:css :targets]))
+          "an empty query")
+      (is (nil? (lightningcss/check-targets "Chrome >= 119, ios >= 16.4, fx > 127, and_chr <= 140.0.1"))
+          "browsers by any case and their aliases, and each op"))))
 
 (deftest a-missing-stylesheet-stops-the-build
   (is (thrown? Exception
@@ -214,7 +223,7 @@
     (let [{:keys [type errors]} (find-refusal #(browser-build/build-for-release! {:entry 'app.browser.main/start! :files-folder "target/public"}))]
       (is (= :browser-build/bad-options type))
       (is (= #{:modules :cache-folder :compile-threads :output-feature-set :resolve :closure-defines :warnings-as-errors
-               :silenced-warnings :css :source-maps? :gzip-level}
+               :silenced-warnings :css :lightningcss-download-timeout-ms :source-maps? :gzip-level}
              (set (keys errors))))))
   (testing "start-watching! names each missing option, before shadow-cljs starts"
     (let [{:keys [type errors]} (find-refusal #(browser-build/start-watching! (dissoc (make-watch-options) :devtools-host :hud :nrepl :log)))]
@@ -288,7 +297,7 @@
         css-text   (slurp css-file)
         {:keys [files-folder cache-folder] :as options} (let [options (make-watch-options)]
                                                           (put-program-in! (:cache-folder options))
-                                                          (assoc options :css {:targets targets :lightningcss pins}))
+                                                          (assoc options :css {:targets targets}))
         output     (java.io.StringWriter.)]
     (try
       (let [watching (binding [*out* output] (browser-build/start-watching! options))

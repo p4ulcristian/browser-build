@@ -69,12 +69,13 @@
                    (str "/*! " path " */\n" (slurp (io/resource path))))))
 
 (defn make-rewrite
-  "How each bundle's text is rewritten: by the pinned lightningcss for
-   the :css :targets, found (or downloaded) in the cache folder and
-   checked now; as it is for :css nil."
-  [css cache-folder]
-  (if-let [{:keys [targets] pins :lightningcss} css]
-    (let [program (lightningcss/find-program! cache-folder pins)]
+  "How each bundle's text is rewritten: by browser-build's pinned
+   lightningcss for the :css :targets, found (or downloaded, within
+   download-timeout-ms) in the cache folder and checked now; as it is for
+   :css nil."
+  [css cache-folder download-timeout-ms]
+  (if-let [{:keys [targets]} css]
+    (let [program (lightningcss/find-program! cache-folder download-timeout-ms lightningcss/pinned)]
       #(lightningcss/rewrite-css program targets %))
     identity))
 
@@ -122,7 +123,7 @@
   "The build hook, after every compile: the check, then the bundle,
    rewritten as the build's :css says."
   {:shadow.build/stage :flush}
-  [build-state {:keys [files-folder log css cache-folder]}]
+  [build-state {:keys [files-folder log css cache-folder lightningcss-download-timeout-ms]}]
   (let [release?        (= :release (:shadow.build/mode build-state))
         named           (list-named-stylesheets build-state)
         unnamed         (list-unnamed-stylesheets build-state named)
@@ -133,7 +134,7 @@
                              (str/join "\n  " unnamed))
                         {:type :browser-build/unnamed-stylesheets :stylesheets (vec unnamed)}))
         (log :warn :browser-build/unnamed-stylesheets {:browser-build/stylesheets (vec unnamed)})))
-    (let [rewrite (make-rewrite css cache-folder)]
+    (let [rewrite (make-rewrite css cache-folder lightningcss-download-timeout-ms)]
       (if release?
         (write-bundles! paths-by-module files-folder true rewrite)
         (let [times (find-modified-times named)]

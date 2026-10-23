@@ -31,7 +31,7 @@ Choices made while building, not asked:
 5. **The whole bundle goes through one run,** `lightningcss --targets <targets>`, the text on stdin; a failure (a targets query it can't read, say) stops the build with lightningcss's own words, `:browser-build/lightningcss-failed`. While watching, a rebundle that fails is written to the app's log, `:browser-build/bundle-failed`, as before.
 6. **Each file's comment is `/*! path */`,** with `:css nil` too: lightningcss drops plain comments and keeps these, so the bundle still names where each rule came from.
 7. **The release's hashed name is the hash of the rewritten text,** what is written.
-8. **No download timeout:** the decision names no setting for one; a download that hangs holds the build until it is stopped.
+8. **No download timeout:** the decision names no setting for one; a download that hangs holds the build until it is stopped. (Changed below: a required setting.)
 9. **The tests pin lightningcss 1.33.0** and download it, so they need the network.
 
 ## Changed 2026-10-23 (the user's decisions, after the build)
@@ -40,3 +40,10 @@ Choices made while building, not asked:
 - **browser-build pins lightningcss**, as it pins shadow-cljs: the version and each platform's sha256 live in browser-build, and an app writes only `:css {:targets "…"}` (or `:css nil`). Upgrading lightningcss is a browser-build release.
 - **The download has a time limit**, a required setting.
 - **browser-build checks the targets itself** before calling lightningcss, which aborts (dumps core) on a browser name it doesn't know; an unknown name stops the build, named.
+
+### Settled while building the changes
+
+1. **The pin is `browser-build.lightningcss/pinned`**, `{:version "1.33.0" :sha256 {platform …}}`, the five platforms' sums the earlier tests pinned; `:css` is a closed map of `:targets` alone, and `:lightningcss` in it is refused.
+2. **The time limit is `:lightningcss-download-timeout-ms`**, a required option of both builds beside `:css` (written out with `:css nil` too, which downloads nothing), not a key inside `:css`: the app's `:css` says only its browsers. It bounds connecting and the whole tarball (the JVM's `HttpClient`, the answer awaited at most that long); past it, `:browser-build/lightningcss-download-timed-out`.
+3. **browser-build reads a small grammar, not all of browserslist:** `<browser> <op> <version>` queries, op `>=` `>` `<=` `<`, version up to three numbers, joined by commas, each browser among browserslist's names and aliases (`browsers`, any case). Tried against lightningcss 1.33.0: every query it can't read aborts it (exit 134, a core dump), not only an unknown browser (`not dead` first, an exact version it doesn't know, `chrome tp`, an empty query), and every query of this grammar runs. The rest of browserslist (`defaults`, `last 2 versions`, `> 0.5%`) is refused with the options, named, as `:browser-build/bad-options` under `:css :targets`.
+4. **A stylesheet lightningcss can't parse still aborts it** (exit 134): the build stops with `:browser-build/lightningcss-failed` and its words, as before; browser-build doesn't parse CSS. The tests check that refusal with a program that exits with an error, not by making lightningcss abort.

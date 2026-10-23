@@ -42,26 +42,22 @@
     [:map {:closed true} [:target [:= :npm]] [:require :string]]]])
 
 (def css-shape
-  "The CSS step, or nil: each bundle as the files are written. Else every
-   key written out:
-   :targets: the browsers the app supports, a browserslist query, \"chrome
-   >= 119, safari >= 16.4, firefox >= 128\": each bundle is rewritten by
+  "The CSS step, or nil: each bundle as the files are written. Else
+   {:targets \"chrome >= 119, safari >= 16.4, firefox >= 128\"}: the
+   browsers the app supports, \"<browser> >= <version>\" queries (or > <=
+   <) joined by commas, each browser one lightningcss knows
+   (lightningcss/browsers), read by browser-build before lightningcss
+   runs (lightningcss/check-targets). Each bundle is rewritten by
    lightningcss for them (nesting flattened, -webkit- prefixes added,
-   nothing minified).
-   :lightningcss: the program, pinned: {:version \"1.33.0\" :sha256
-   {\"linux-x64\" \"…\" \"darwin-arm64\" \"…\"}}, the sha256 of the program
-   itself for each platform the app builds on (linux-x64 linux-arm64
-   darwin-x64 darwin-arm64 windows-x64). Downloaded once per platform from
-   npm's registry into the cache folder, checked when downloaded and every
-   time it runs; a platform not named, or a checksum that differs, stops
-   the build."
+   nothing minified). The program is browser-build's own pin
+   (lightningcss/pinned), downloaded once per platform from npm's
+   registry into the cache folder and checked against its sha256 when
+   downloaded and every time it runs."
   [:maybe [:map {:closed true}
-           [:targets [:string {:min 1}]]
-           [:lightningcss [:map {:closed true}
-                           [:version [:re #"^\d+\.\d+\.\d+$"]]
-                           [:sha256 [:map-of {:min 1}
-                                     (into [:enum] (sort (keys lightningcss/platforms)))
-                                     [:re {:error/message "should be a sha256, 64 lowercase hex digits"} #"^[0-9a-f]{64}$"]]]]]]])
+           [:targets [:and
+                      [:string {:min 1}]
+                      [:fn {:error/fn (fn [{:keys [value]} _] (lightningcss/check-targets value))}
+                       #(nil? (lightningcss/check-targets %))]]]]])
 
 (def ^:private build-entries
   [[:entry :qualified-symbol]
@@ -74,7 +70,8 @@
    [:closure-defines [:map-of :symbol [:or :string :boolean number?]]]
    [:warnings-as-errors [:set :keyword]]
    [:silenced-warnings [:set :keyword]]
-   [:css css-shape]])
+   [:css css-shape]
+   [:lightningcss-download-timeout-ms [:int {:min 1}]]])
 
 (def ^:private repl-server-shape
   [:maybe [:map {:closed true}
@@ -104,9 +101,14 @@
    :silenced-warnings: the compiler warnings not shown at all,
    #{:unreachable-code}, #{} for none; none of them may also stop the
    build.
-   :css: the CSS step (css-shape): {:targets \"…\" :lightningcss {:version
-   \"…\" :sha256 {…}}}, each bundle rewritten for the app's browsers, or
-   nil, as the files are written.
+   :css: the CSS step (css-shape): {:targets \"…\"}, each bundle rewritten
+   for the app's browsers by browser-build's pinned lightningcss, or nil,
+   as the files are written.
+   :lightningcss-download-timeout-ms: how long the pinned lightningcss may
+   take to download (once per platform, into the cache folder), connecting
+   and the whole tarball; past it the build stops,
+   :browser-build/lightningcss-download-timed-out. Written out with :css
+   nil too, which downloads nothing.
    :preloads: namespaces loaded before the entry, while watching only
    (development tools: a debugger's), [] for none; a release build has
    none.
@@ -151,7 +153,8 @@
   "build-for-release!'s options, every key required: the build's
    (:entry :modules :files-folder :cache-folder :compile-threads
    :output-feature-set :resolve :closure-defines :warnings-as-errors
-   :silenced-warnings :css, as start-watching! takes them; no :preloads, which
+   :silenced-warnings :css :lightningcss-download-timeout-ms, as
+   start-watching! takes them; no :preloads, which
    are for development), and
    :source-maps?: a .map beside each file, so the browser shows the
    ClojureScript a failure came from (anyone can read it);

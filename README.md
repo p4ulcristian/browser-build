@@ -9,7 +9,7 @@ names, a manifest, a gzipped copy of each file. **The stylesheets:** a
 namespace names each stylesheet it needs, as a query names its `.sql` file;
 the build gathers them into one bundle, in the order the namespaces are
 found, and checks that none beside the code is left unnamed. **The CSS
-step:** with `:css`, each bundle is rewritten by a pinned lightningcss
+step:** with `:css`, each bundle is rewritten by the lightningcss program browser-build pins
 program for the browsers the app supports (nesting flattened, `-webkit-`
 prefixes added, nothing minified); with `:css nil`, it is written as the
 files are.
@@ -51,6 +51,7 @@ namespace, `browser-build.api`, with a `.clj` half (the build, the macro) and a
                                :warnings-as-errors #{}              ; warnings that stop the build: #{:infer-warning}
                                :silenced-warnings  #{}              ; warnings not shown: #{:unreachable-code}
                                :css                nil              ; or the CSS step, below
+                               :lightningcss-download-timeout-ms 60000   ; the pinned program's download, once per platform
                                :source-maps?       false            ; a .map beside each file, readable by anyone
                                :gzip-level         9}}              ; the .gz copies, 1 (fast) to 9 (smallest)
 
@@ -68,6 +69,7 @@ namespace, `browser-build.api`, with a `.clj` half (the build, the macro) and a
                 :warnings-as-errors        #{}
                 :silenced-warnings         #{}
                 :css                       nil             ; or the CSS step, below
+                :lightningcss-download-timeout-ms 60000
                 :preloads                  []              ; development only: namespaces loaded before the entry
                 :devtools-host             "localhost"     ; where open pages connect for new code; it can run code in this JVM
                 :devtools-port             9630            ; a port in use is refused; 0 picks a free one
@@ -92,24 +94,31 @@ namespace, `browser-build.api`, with a `.clj` half (the build, the macro) and a
   [:div {:class "order-card"} (:order/number order)])
 ```
 
-The CSS step, for both builds, every key written out:
+The CSS step, for both builds, the app's browsers only:
 
 ```clojure
-:css {:targets      "chrome >= 119, safari >= 16.4, firefox >= 128"   ; a browserslist query
-      :lightningcss {:version "1.33.0"
-                     :sha256  {"linux-x64"    "e7175508098a87b4e9788a695e9a4d780db727f317f69c1c452d6d0db1fc9817"
-                               "darwin-arm64" "c6a00cbd56610472494060d6b53b74ffd19442c6979b9346667e9abadd2c6c45"}}}
+:css {:targets "chrome >= 119, safari >= 16.4, firefox >= 128"}
 ```
 
-`:sha256` is the program's own checksum for each platform the app builds
-on (`linux-x64` `linux-arm64` `darwin-x64` `darwin-arm64` `windows-x64`).
-The program comes once per platform from npm's registry (the
-`lightningcss-cli-<platform>` tarball, read on the JVM), is kept in the
-cache folder, `<cache-folder>/lightningcss/<version>/<platform>/`, and is
-checked when downloaded and every time it runs; a platform the pins don't
-name (`:browser-build/lightningcss-no-platform`), a checksum that differs
-(`:browser-build/lightningcss-checksum`) or lightningcss's own refusal
-(`:browser-build/lightningcss-failed`) stops the build, named. Each file
+`:targets` is `<browser> <op> <version>` queries (op `>=` `>` `<=` `<`)
+joined by commas, each browser one lightningcss knows (browserslist's
+names and aliases, `browser-build.lightningcss/browsers`, any case).
+browser-build reads them itself before lightningcss runs, which aborts
+on a query it can't read: anything else (a browser it doesn't know, an
+exact version, a browserslist keyword such as `defaults`) is refused
+with the options, named. The program is browser-build's own pin,
+lightningcss 1.33.0 and its sha256 on each platform (`linux-x64`
+`linux-arm64` `darwin-x64` `darwin-arm64` `windows-x64`), as it pins
+shadow-cljs: upgrading lightningcss is a browser-build release. It comes
+once per platform from npm's registry (the `lightningcss-cli-<platform>`
+tarball, read on the JVM), within `:lightningcss-download-timeout-ms`, is
+kept in the cache folder, `<cache-folder>/lightningcss/<version>/<platform>/`,
+and is checked when downloaded and every time it runs; a platform the
+pin doesn't name (`:browser-build/lightningcss-no-platform`), a download
+past its time (`:browser-build/lightningcss-download-timed-out`), a
+checksum that differs (`:browser-build/lightningcss-checksum`) or
+lightningcss's own refusal (`:browser-build/lightningcss-failed`) stops
+the build, named. Each file
 in a bundle follows a `/*! path */` comment naming it, which lightningcss
 keeps ([why](decisions/2026-10-23-stylesheets-are-rewritten-for-the-apps-browsers-by-a-pinned-lightningcss.md)).
 
