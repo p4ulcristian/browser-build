@@ -32,6 +32,7 @@
    :resolve            {}
    :closure-defines    {}
    :warnings-as-errors #{}
+   :silenced-warnings  #{}
    :source-maps?       false
    :gzip-level         9})
 
@@ -52,6 +53,8 @@
    :resolve                   {}
    :closure-defines           {}
    :warnings-as-errors        #{}
+   :silenced-warnings         #{}
+   :preloads                  []
    :devtools-host             "localhost"
    :devtools-port             0
    :devtools-url              nil
@@ -129,7 +132,7 @@
     (let [{:keys [type errors]} (find-refusal #(browser-build/build-for-release! {:entry 'app.browser.main/start! :files-folder "target/public"}))]
       (is (= :browser-build/bad-options type))
       (is (= #{:modules :cache-folder :compile-threads :output-feature-set :resolve :closure-defines :warnings-as-errors
-               :source-maps? :gzip-level}
+               :silenced-warnings :source-maps? :gzip-level}
              (set (keys errors))))))
   (testing "start-watching! names each missing option, before shadow-cljs starts"
     (let [{:keys [type errors]} (find-refusal #(browser-build/start-watching! (dissoc (make-watch-options) :devtools-host :hud :nrepl :log)))]
@@ -162,6 +165,24 @@
       (is (= {"process" {:target :file :file "shim.js"} "@maptiler/sdk" false} (get-in build [:js-options :resolve])))
       (is (= '{malli.registry/type "custom"} (get-in build [:compiler-options :closure-defines])))
       (is (= #{:infer-warning} (get-in build [:compiler-options :warnings-as-errors]))))
+    (testing "silenced warnings are shadow-cljs's :warnings, each false; preloads only while watching"
+      (is (= {:unreachable-code false}
+             (get-in (browser-build/make-build :release (assoc (make-release-options 'browser-build.build-check/start!)
+                                                          :silenced-warnings #{:unreachable-code}))
+                     [:compiler-options :warnings])))
+      (is (= {} (get-in (browser-build/make-build :release (make-release-options 'browser-build.build-check/start!))
+                        [:compiler-options :warnings])))
+      (is (= '[app.dev.tools] (get-in (browser-build/make-build :watch (assoc (make-watch-options) :preloads '[app.dev.tools]))
+                                      [:devtools :preloads])))
+      (is (= {:preloads ["disallowed key"]}
+             (:errors (find-refusal #(browser-build/make-build :release (assoc (make-release-options 'browser-build.build-check/start!)
+                                                                          :preloads '[app.dev.tools])))))
+          "a release has no preloads")
+      (is (= {:silenced-warnings ["silenced and among :warnings-as-errors: [:infer-warning]"]}
+             (:errors (find-refusal #(browser-build/make-build :release (assoc (make-release-options 'browser-build.build-check/start!)
+                                                                          :warnings-as-errors #{:infer-warning}
+                                                                          :silenced-warnings #{:infer-warning})))))
+          "a warning is silenced or stops the build, not both"))
     (is (= :browser-build/bad-options
            (:type (find-refusal #(browser-build/make-build :release (assoc (make-release-options 'browser-build.build-check/start!)
                                                                       :resolve {"x" {:target :file}})))))

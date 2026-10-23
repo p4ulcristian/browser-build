@@ -49,7 +49,8 @@
    [:output-feature-set (into [:enum] output-feature-sets)]
    [:resolve resolve-shape]
    [:closure-defines [:map-of :symbol [:or :string :boolean number?]]]
-   [:warnings-as-errors [:set :keyword]]])
+   [:warnings-as-errors [:set :keyword]]
+   [:silenced-warnings [:set :keyword]]])
 
 (def ^:private repl-server-shape
   [:maybe [:map {:closed true}
@@ -76,6 +77,12 @@
    {malli.registry/type \"custom\"}, {} for none.
    :warnings-as-errors: the compiler warnings that stop the build,
    #{:infer-warning}, #{} for none.
+   :silenced-warnings: the compiler warnings not shown at all,
+   #{:unreachable-code}, #{} for none; none of them may also stop the
+   build.
+   :preloads: namespaces loaded before the entry, while watching only
+   (development tools: a debugger's), [] for none; a release build has
+   none.
 
    shadow-cljs's server, which open pages connect to for new code:
    :devtools-host: the address it listens on, \"localhost\" (\"0.0.0.0\"
@@ -102,6 +109,7 @@
   (into [:map {:closed true}]
         (concat build-entries
                 [[:log [fn? {:error/message "should be the app's log function, made by logbook"}]]
+                 [:preloads [:vector :symbol]]
                  [:devtools-host :string]
                  [:devtools-port [:int {:min 0}]]
                  [:devtools-url [:maybe :string]]
@@ -115,8 +123,9 @@
 (def release-options-shape
   "build-for-release!'s options, every key required: the build's
    (:entry :modules :files-folder :cache-folder :compile-threads
-   :output-feature-set :resolve :closure-defines :warnings-as-errors, as
-   start-watching! takes them), and
+   :output-feature-set :resolve :closure-defines :warnings-as-errors
+   :silenced-warnings, as start-watching! takes them; no :preloads, which
+   are for development), and
    :source-maps?: a .map beside each file, so the browser shows the
    ClojureScript a failure came from (anyone can read it);
    :gzip-level: how hard the .gz copies are squeezed, 1 (fast) to 9
@@ -140,8 +149,23 @@
                       {:type kind :errors errors}))))
   data)
 
+(defn- find-warnings-both-silenced-and-stopping
+  "A warning can't be silenced and stop the build: {:silenced-warnings
+   [\"…\"]}, or nil."
+  [{:keys [warnings-as-errors silenced-warnings]}]
+  (let [both (sort (filter (set warnings-as-errors) silenced-warnings))]
+    (when (seq both)
+      {:silenced-warnings [(str "silenced and among :warnings-as-errors: " (vec both))]})))
+
+(defn- check-build-options [shape options]
+  (check-data-for-shape "The options" :browser-build/bad-options shape options)
+  (when-let [errors (find-warnings-both-silenced-and-stopping options)]
+    (throw (ex-info (str "The options have problems: " (pr-str errors))
+                    {:type :browser-build/bad-options :errors errors})))
+  options)
+
 (defn check-watch-options [options]
-  (check-data-for-shape "The options" :browser-build/bad-options watch-options-shape options))
+  (check-build-options watch-options-shape options))
 
 (defn check-release-options [options]
-  (check-data-for-shape "The options" :browser-build/bad-options release-options-shape options))
+  (check-build-options release-options-shape options))

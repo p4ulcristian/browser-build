@@ -44,6 +44,7 @@ namespace, `browser-build.api`, with a `.clj` half (the build, the macro) and a
                                :resolve            {}               ; npm modules replaced: {"process" {:target :file :file "src/process_shim.js"}}
                                :closure-defines    {}               ; goog-defines: {malli.registry/type "custom"}
                                :warnings-as-errors #{}              ; warnings that stop the build: #{:infer-warning}
+                               :silenced-warnings  #{}              ; warnings not shown: #{:unreachable-code}
                                :source-maps?       false            ; a .map beside each file, readable by anyone
                                :gzip-level         9}}              ; the .gz copies, 1 (fast) to 9 (smallest)
 
@@ -59,6 +60,8 @@ namespace, `browser-build.api`, with a `.clj` half (the build, the macro) and a
                 :resolve                   {}
                 :closure-defines           {}
                 :warnings-as-errors        #{}
+                :silenced-warnings         #{}
+                :preloads                  []              ; development only: namespaces loaded before the entry
                 :devtools-host             "localhost"     ; where open pages connect for new code; it can run code in this JVM
                 :devtools-port             9630            ; a port in use is refused; 0 picks a free one
                 :devtools-url              nil             ; nil: the page's own host and that port

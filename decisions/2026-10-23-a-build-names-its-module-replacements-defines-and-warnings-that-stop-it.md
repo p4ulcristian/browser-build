@@ -1,5 +1,7 @@
 # A build names its module replacements, its defines and the warnings that stop it; no pass-through
 
+> **Added to** by [A build names the warnings it silences, and a watch its preloads](2026-10-23-a-build-names-the-warnings-it-silences-and-the-watch-its-preloads.md) (2026-10-23, built on tidy-up, not released): `:silenced-warnings` and the watch's `:preloads`.
+
 > The user's decision, 2026-10-23, for Iron Rainbow's move to Groundwork v1 (its build uses all three: a `process` shim three.js needs, malli's registry define, `:infer-warning` as an error). Built the same day.
 
 **Decision:** three new build settings, each required, checked by malli, written out empty where none is meant:

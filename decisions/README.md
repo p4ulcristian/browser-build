@@ -17,9 +17,10 @@ All but the last four were made while showroom was two libraries inside Groundwo
 - [The app passes its log to a watch; a release build has none](2026-10-22-the-app-passes-its-log.md)
 - [A build has modules loaded on demand, each with its own stylesheets, linked before its code](2026-10-23-a-build-has-modules-loaded-on-demand-each-styled-first.md), added to by [A module names its start](2026-10-23-a-module-names-its-start.md)
 - [A release checks, before compiling, that every npm package it needs is the app's own dependency](2026-10-23-a-release-checks-its-npm-packages-are-the-apps-own.md)
-- [A build names its module replacements, its defines and the warnings that stop it; no pass-through](2026-10-23-a-build-names-its-module-replacements-defines-and-warnings-that-stop-it.md)
+- [A build names its module replacements, its defines and the warnings that stop it; no pass-through](2026-10-23-a-build-names-its-module-replacements-defines-and-warnings-that-stop-it.md), added to by [A build names the warnings it silences, and a watch its preloads](2026-10-23-a-build-names-the-warnings-it-silences-and-the-watch-its-preloads.md)
 - [showroom is renamed browser-build](2026-10-23-showroom-is-renamed-browser-build.md)
 - [A module names its start](2026-10-23-a-module-names-its-start.md) (built on tidy-up, not released)
+- [A build names the warnings it silences, and a watch its preloads](2026-10-23-a-build-names-the-warnings-it-silences-and-the-watch-its-preloads.md) (built on tidy-up, not released)
 
 ## Replaced
 

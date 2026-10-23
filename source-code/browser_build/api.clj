@@ -10,8 +10,8 @@
                     {:log log                                  ; the app's (logbook's)
                      :entry 'app.browser.main/start! :modules {} :files-folder \"target/public\"
                      :cache-folder \".shadow-cljs\" :compile-threads 4 :output-feature-set :es2020
-                     :resolve {} :closure-defines {} :warnings-as-errors #{}
-                     :devtools-host \"localhost\" :devtools-port 9630 :devtools-url nil
+                     :resolve {} :closure-defines {} :warnings-as-errors #{} :silenced-warnings #{}
+                     :preloads [] :devtools-host \"localhost\" :devtools-port 9630 :devtools-url nil
                      :nrepl nil :socket-repl nil
                      :hot-reload? true :reload-strategy :optimized :hud #{:errors :warnings :progress}
                      :stylesheet-check-every-ms 300}))
@@ -67,11 +67,12 @@
    files folder at /). After every compile the stylesheets each module's
    namespaces named become that module's bundle in <files-folder>/css;
    while watching, shadow-cljs swaps a changed bundle into open pages."
-  [mode {:keys [entry modules files-folder output-feature-set log resolve closure-defines warnings-as-errors] :as options}]
+  [mode {:keys [entry modules files-folder output-feature-set log resolve closure-defines warnings-as-errors
+               silenced-warnings] :as options}]
   (case mode
     :watch   (settings/check-watch-options options)
     :release (settings/check-release-options options))
-  (let [{:keys [devtools-url hot-reload? reload-strategy hud]} options]
+  (let [{:keys [devtools-url hot-reload? reload-strategy hud preloads]} options]
     (cond-> {:build-id         :browser-build
              :target           :browser
              :output-dir       (str files-folder "/js")
@@ -83,7 +84,8 @@
              :js-options       {:resolve resolve}
              :compiler-options {:output-feature-set output-feature-set
                                 :closure-defines    closure-defines
-                                :warnings-as-errors warnings-as-errors}}
+                                :warnings-as-errors warnings-as-errors
+                                :warnings           (zipmap silenced-warnings (repeat false))}}
       (= :release mode)
       (-> (assoc-in [:compiler-options :optimizations] :advanced)
           ;; every npm package it takes code from is the app's own dependency, before compiling
@@ -97,7 +99,8 @@
                                 :reload-strategy   reload-strategy
                                 :hud               (if (seq hud) hud false)
                                 :use-document-host true
-                                :log               true}
+                                :log               true
+                                :preloads          preloads}
                          devtools-url (assoc :devtools-url devtools-url))))))
 
 (defn- make-shadow-config
