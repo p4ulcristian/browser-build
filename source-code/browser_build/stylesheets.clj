@@ -2,8 +2,11 @@
   "Each module's stylesheet bundle, made after every compile (a shadow-cljs
    build hook): the stylesheets the module's namespaces named with
    browser-build.api's use-stylesheet, in the order the namespaces are found,
-   each whole and as written, one after another; a stylesheet two modules
-   name is in the first one's (one loads after the other).
+   each whole, one after another, after a /*! path */ comment naming it; a
+   stylesheet two modules name is in the first one's (one loads after the
+   other). With the build's :css, each bundle is then rewritten by the
+   pinned lightningcss for the app's browsers (browser-build.lightningcss);
+   with :css nil, it is written as the files are.
 
      <files-folder>/css/main.css, admin.css            while watching
      <files-folder>/css/main.<hash>.css, admin.<hash>.css   a release build, with
@@ -13,6 +16,7 @@
    by one of them. A release build stops on any that isn't; while watching
    they are written to the app's log, :warn :browser-build/unnamed-stylesheets."
   (:require
+   [browser-build.lightningcss :as lightningcss]
    [clojure.edn]
    [clojure.java.io :as io]
    [clojure.string :as str])
@@ -58,10 +62,21 @@
          (sort))))
 
 (defn make-bundle-text
-  "The bundle: each stylesheet, whole, after a comment naming it."
+  "The bundle: each stylesheet, whole, after a comment naming it, /*! … */,
+   which lightningcss keeps."
   [paths]
   (str/join "\n" (for [path paths]
-                   (str "/* " path " */\n" (slurp (io/resource path))))))
+                   (str "/*! " path " */\n" (slurp (io/resource path))))))
+
+(defn make-rewrite
+  "How each bundle's text is rewritten: by the pinned lightningcss for
+   the :css :targets, found (or downloaded) in the cache folder and
+   checked now; as it is for :css nil."
+  [css cache-folder]
+  (if-let [{:keys [targets] pins :lightningcss} css]
+    (let [program (lightningcss/find-program! cache-folder pins)]
+      #(lightningcss/rewrite-css program targets %))
+    identity))
 
 (defn- hash-text [text]
   (let [digest (.digest (MessageDigest/getInstance "SHA-256") (.getBytes ^String text "UTF-8"))]
@@ -73,18 +88,19 @@
     (spit file text)))
 
 (defn write-bundles!
-  "Writes each module's bundle into the folder: <module>.css, or when
-   released, <module>.<hash>.css and the manifest of them all."
-  [paths-by-module files-folder release?]
+  "Writes each module's bundle, rewritten (make-rewrite), into the folder:
+   <module>.css, or when released, <module>.<hash>.css, the hash of what
+   is written, and the manifest of them all."
+  [paths-by-module files-folder release? rewrite]
   (if release?
     (spit (io/file files-folder "css" "manifest.edn")
           (pr-str (vec (for [[module-id paths] (sort-by key paths-by-module)
-                             :let [text        (make-bundle-text paths)
+                             :let [text        (rewrite (make-bundle-text paths))
                                    output-name (str (name module-id) "." (hash-text text) ".css")]]
                          (do (write-if-changed! (io/file files-folder "css" output-name) text)
                              {:module-id module-id :output-name output-name})))))
     (doseq [[module-id paths] paths-by-module]
-      (write-if-changed! (io/file files-folder "css" (str (name module-id) ".css")) (make-bundle-text paths)))))
+      (write-if-changed! (io/file files-folder "css" (str (name module-id) ".css")) (rewrite (make-bundle-text paths))))))
 
 (defn- find-modified-times
   "Each named stylesheet's last save, by path, for those in folders (a
@@ -98,14 +114,15 @@
 (def last-bundle
   "The last bundles written while watching, for re-bundling when a
    stylesheet is saved: {:paths-by-module {module-id […]} :files-folder …
-   :times {path saved-at}}, the times read before the stylesheets were, so
-   a save while bundling is seen at the next check."
+   :rewrite f :times {path saved-at}}, the times read before the
+   stylesheets were, so a save while bundling is seen at the next check."
   (atom nil))
 
 (defn bundle-stylesheets
-  "The build hook, after every compile: the check, then the bundle."
+  "The build hook, after every compile: the check, then the bundle,
+   rewritten as the build's :css says."
   {:shadow.build/stage :flush}
-  [build-state {:keys [files-folder log]}]
+  [build-state {:keys [files-folder log css cache-folder]}]
   (let [release?        (= :release (:shadow.build/mode build-state))
         named           (list-named-stylesheets build-state)
         unnamed         (list-unnamed-stylesheets build-state named)
@@ -116,11 +133,12 @@
                              (str/join "\n  " unnamed))
                         {:type :browser-build/unnamed-stylesheets :stylesheets (vec unnamed)}))
         (log :warn :browser-build/unnamed-stylesheets {:browser-build/stylesheets (vec unnamed)})))
-    (if release?
-      (write-bundles! paths-by-module files-folder true)
-      (let [times (find-modified-times named)]
-        (write-bundles! paths-by-module files-folder false)
-        (reset! last-bundle {:paths-by-module paths-by-module :files-folder files-folder :times times})))
+    (let [rewrite (make-rewrite css cache-folder)]
+      (if release?
+        (write-bundles! paths-by-module files-folder true rewrite)
+        (let [times (find-modified-times named)]
+          (write-bundles! paths-by-module files-folder false rewrite)
+          (reset! last-bundle {:paths-by-module paths-by-module :files-folder files-folder :rewrite rewrite :times times}))))
     build-state))
 
 (defn start-watching-stylesheets!
@@ -135,11 +153,11 @@
   [check-every-ms log]
   (let [running? (atom true)
         check!   (fn []
-                   (let [{:keys [paths-by-module files-folder times]} @last-bundle
+                   (let [{:keys [paths-by-module files-folder rewrite times]} @last-bundle
                          now (find-modified-times (distinct (apply concat (vals paths-by-module))))]
                      ;; nothing until a compile has bundled
                      (when (and files-folder (not= times now))
-                       (write-bundles! paths-by-module files-folder false)
+                       (write-bundles! paths-by-module files-folder false rewrite)
                        (swap! last-bundle #(if (= paths-by-module (:paths-by-module %)) (assoc % :times now) %)))))
         thread   (Thread.
                   ^Runnable

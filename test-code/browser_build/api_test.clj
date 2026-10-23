@@ -9,7 +9,8 @@
    [clojure.java.io :as io]
    [clojure.string :as str]
    [clojure.test :refer [deftest is testing]]
-   [browser-build.api :as browser-build])
+   [browser-build.api :as browser-build]
+   [browser-build.lightningcss :as lightningcss])
   (:import
    (java.net ServerSocket)
    (java.nio.file Files)
@@ -33,6 +34,7 @@
    :closure-defines    {}
    :warnings-as-errors #{}
    :silenced-warnings  #{}
+   :css                nil
    :source-maps?       false
    :gzip-level         9})
 
@@ -54,6 +56,7 @@
    :closure-defines           {}
    :warnings-as-errors        #{}
    :silenced-warnings         #{}
+   :css                       nil
    :preloads                  []
    :devtools-host             "localhost"
    :devtools-port             0
@@ -86,8 +89,8 @@
     (let [[{:keys [output-name]}] (edn/read-string (slurp (io/file files-folder "css" "manifest.edn")))
           css (io/file files-folder "css" output-name)]
       (is (re-matches #"main\.[0-9A-F]{16}\.css" output-name))
-      (is (= "/* browser_build/build_check.css */\n.build-check { color: rebeccapurple; }\n" (slurp css))
-          "the named stylesheet, whole, as written")
+      (is (= "/*! browser_build/build_check.css */\n.build-check { color: rebeccapurple; }\n" (slurp css))
+          "the named stylesheet, whole, as written: :css nil")
       (is (= (slurp css) (gunzip (str css ".gz")))))))
 
 (deftest a-release-build-with-a-module-loaded-on-demand
@@ -103,10 +106,10 @@
       (is (= [:admin :main] (sort (map :module-id js-files))) "two modules, each its own file")
       (is (= [:admin :main] (map :module-id css-files)) "and each its own stylesheet bundle")
       (is (every? #(re-matches #"(main|admin)\.[0-9A-F]+\.css" (:output-name %)) css-files))
-      (is (= "/* browser_build/modules_check/main.css */
+      (is (= "/*! browser_build/modules_check/main.css */
 .main-check { color: rebeccapurple; }
 " (css-of :main)))
-      (is (= "/* browser_build/modules_check/admin.css */
+      (is (= "/*! browser_build/modules_check/admin.css */
 .admin-check { color: tomato; }
 " (css-of :admin)))
       (is (str/includes? (js-of :admin) "admin-module-here") "the module's code in its own file")
@@ -115,6 +118,85 @@
       (is (str/includes? (js-of :main) (:output-name (first (filter #(= :admin (:module-id %)) js-files))))
           "main knows where the module's hashed file is, for the loader")
       (is (every? #(.exists (io/file files-folder "css" (str (:output-name %) ".gz"))) css-files) "gzipped too"))))
+
+(def ^:private pins
+  "lightningcss 1.33.0, the sha256 of its program on each platform."
+  {:version "1.33.0"
+   :sha256  {"linux-x64"    "e7175508098a87b4e9788a695e9a4d780db727f317f69c1c452d6d0db1fc9817"
+             "linux-arm64"  "aad374206d8e64991cccb94e12e01951df7370814bcbe4bd6dee74fa52282500"
+             "darwin-x64"   "348fd8afa8dc5c29a060f0dd85c78af1dc4ba4d9e5eeff3d1a8af9a992de6dc6"
+             "darwin-arm64" "c6a00cbd56610472494060d6b53b74ffd19442c6979b9346667e9abadd2c6c45"
+             "windows-x64"  "be3ed8a564eea2cf8e8d0a92d807834ef00380b6889566b35ef2c68ff6426b34"}})
+
+(def ^:private targets "chrome >= 119, safari >= 16.4, firefox >= 128")
+
+(def ^:private downloaded
+  "The pinned program, downloaded once for the tests that only need it there."
+  (delay (lightningcss/find-program! (make-folder) pins)))
+
+(defn- put-program-in! [cache-folder]
+  (let [file (io/file cache-folder "lightningcss" (:version pins) (lightningcss/find-platform)
+                      (.getName (io/file @downloaded)))]
+    (io/make-parents file)
+    (io/copy (io/file @downloaded) file)
+    cache-folder))
+
+(defn- find-type-of-cause
+  "The :type of the first ex-info along the causes that has one."
+  [^Throwable e]
+  (some #(:type (ex-data %)) (take-while some? (iterate #(.getCause ^Throwable %) e))))
+
+(defn- find-release-refusal [options]
+  (try (with-out-str (browser-build/build-for-release! options)) :built
+       (catch Exception e (find-type-of-cause e))))
+
+(deftest a-release-build-rewrites-its-stylesheets-for-the-apps-browsers
+  (let [{:keys [files-folder cache-folder] :as options} (assoc (make-release-options 'browser-build.css-check.entry/start!)
+                                                              :css {:targets targets :lightningcss pins})]
+    (with-out-str (browser-build/build-for-release! options))
+    (let [[{:keys [output-name]}] (edn/read-string (slurp (io/file files-folder "css" "manifest.edn")))
+          css (slurp (io/file files-folder "css" output-name))]
+      (is (str/includes? css "/*! browser_build/css_check/entry.css */") "the comment naming the file, kept")
+      (is (str/includes? css ".css-check .title {") "nesting flattened, for Safari 16.4")
+      (is (str/includes? css "-webkit-backdrop-filter: blur(4px);") "the prefix Safari needs")
+      (is (str/includes? css "color: tomato;") "not minified")
+      (is (= css (gunzip (io/file files-folder "css" (str output-name ".gz"))))))
+    (is (.exists (io/file cache-folder "lightningcss" "1.33.0" (lightningcss/find-platform)))
+        "downloaded into the build's cache folder"))
+  (testing "a checksum that differs stops the build, named"
+    (let [cache-folder (put-program-in! (make-folder))]
+      (is (= :browser-build/lightningcss-checksum
+             (find-release-refusal (assoc (make-release-options 'browser-build.css-check.entry/start!)
+                                          :cache-folder cache-folder
+                                          :css {:targets targets
+                                                :lightningcss (assoc-in pins [:sha256 (lightningcss/find-platform)] (apply str (repeat 64 "0")))}))))))
+  (testing "a platform the pins don't name stops the build, named, before anything is downloaded"
+    (let [cache-folder (make-folder)]
+      (is (= :browser-build/lightningcss-no-platform
+             (find-release-refusal (assoc (make-release-options 'browser-build.css-check.entry/start!)
+                                          :cache-folder cache-folder
+                                          :css {:targets targets
+                                                :lightningcss (update pins :sha256 dissoc (lightningcss/find-platform))}))))
+      (is (not (.exists (io/file cache-folder "lightningcss"))))))
+  (testing "lightningcss's own refusal stops the build, with its words"
+    (is (= :browser-build/lightningcss-failed
+           (find-release-refusal (assoc (make-release-options 'browser-build.css-check.entry/start!)
+                                        :cache-folder (put-program-in! (make-folder))
+                                        :css {:targets "no such browser >= 1" :lightningcss pins}))))))
+
+(deftest the-css-step-is-written-out
+  (is (= {:css {:lightningcss {:sha256 {"linux-x64" ["should be a sha256, 64 lowercase hex digits"]}}}}
+         (:errors (find-refusal #(browser-build/make-build :release (assoc (make-release-options 'browser-build.build-check/start!)
+                                                                      :css {:targets targets
+                                                                            :lightningcss {:version "1.33.0" :sha256 {"linux-x64" "abc"}}}))))))
+  (is (= {:css {:lightningcss {:sha256 {"beos-x64" ["should be either \"darwin-arm64\", \"darwin-x64\", \"linux-arm64\", \"linux-x64\" or \"windows-x64\""]}}}}
+         (:errors (find-refusal #(browser-build/make-build :release (assoc (make-release-options 'browser-build.build-check/start!)
+                                                                      :css {:targets targets
+                                                                            :lightningcss {:version "1.33.0" :sha256 {"beos-x64" (apply str (repeat 64 "a"))}}})))))
+      "a platform browser-build knows")
+  (is (= {:css {:targets ["missing required key"]}}
+         (:errors (find-refusal #(browser-build/make-build :release (assoc (make-release-options 'browser-build.build-check/start!)
+                                                                      :css {:lightningcss pins})))))))
 
 (deftest a-missing-stylesheet-stops-the-build
   (is (thrown? Exception
@@ -132,7 +214,7 @@
     (let [{:keys [type errors]} (find-refusal #(browser-build/build-for-release! {:entry 'app.browser.main/start! :files-folder "target/public"}))]
       (is (= :browser-build/bad-options type))
       (is (= #{:modules :cache-folder :compile-threads :output-feature-set :resolve :closure-defines :warnings-as-errors
-               :silenced-warnings :source-maps? :gzip-level}
+               :silenced-warnings :css :source-maps? :gzip-level}
              (set (keys errors))))))
   (testing "start-watching! names each missing option, before shadow-cljs starts"
     (let [{:keys [type errors]} (find-refusal #(browser-build/start-watching! (dissoc (make-watch-options) :devtools-host :hud :nrepl :log)))]
@@ -204,22 +286,24 @@
       (is (thrown? Exception (with-out-str (browser-build/start-watching! (assoc (make-watch-options) :devtools-port (.getLocalPort taken))))))))
   (let [entry-text (slurp entry-file)
         css-text   (slurp css-file)
-        {:keys [files-folder cache-folder] :as options} (make-watch-options)
+        {:keys [files-folder cache-folder] :as options} (let [options (make-watch-options)]
+                                                          (put-program-in! (:cache-folder options))
+                                                          (assoc options :css {:targets targets :lightningcss pins}))
         output     (java.io.StringWriter.)]
     (try
       (let [watching (binding [*out* output] (browser-build/start-watching! options))
             bundle   (io/file files-folder "css" "main.css")
             code     (io/file files-folder "js" "cljs-runtime" "browser_build.watch_check.entry.js")]
         (try
-          (testing "the first compile: the page's code and its bundle"
+          (testing "the first compile: the page's code and its bundle, through the CSS step"
             (is (.exists (io/file files-folder "js" "main.js")))
             (is (str/includes? (slurp code) "watch-check-one"))
-            (is (str/includes? (slurp bundle) "rebeccapurple")))
+            (is (str/includes? (slurp bundle) "color: #639;") "rebeccapurple, as lightningcss writes it"))
           (testing "shadow-cljs wrote its port into the cache folder, not .shadow-cljs"
             (is (.exists (io/file cache-folder "http.port"))))
-          (testing "a stylesheet saved right after the start is rebundled"
-            (spit css-file ".watch-check { color: tomato; }\n")
-            (is (wait-until #(str/includes? (slurp bundle) "tomato"))))
+          (testing "a stylesheet saved right after the start is rebundled, through the CSS step"
+            (spit css-file ".watch-check { & .inner { color: tomato; } }\n")
+            (is (wait-until #(str/includes? (slurp bundle) ".watch-check .inner {"))))
           (testing "a saved namespace is compiled again; a stylesheet no namespace names is written to the log"
             (reset! lines [])
             (spit stray-file ".stray { color: red; }\n")

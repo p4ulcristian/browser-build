@@ -1,5 +1,7 @@
 # Built files are gzipped, not minified; no node in the build
 
+> **Changed in part** by [Stylesheets are rewritten for the app's browsers by a pinned lightningcss program](2026-10-23-stylesheets-are-rewritten-for-the-apps-browsers-by-a-pinned-lightningcss.md) (2026-10-23, built on tidy-up, not released): with `:css`, nesting is flattened and prefixes added, by lightningcss as a downloaded program, still with no node; still nothing minified.
+
 > **Changed in part** by [Every value that sets behaviour is a setting](2026-10-22-every-value-that-sets-behaviour-is-a-setting.md) (2026-10-22, v0.1.1): the gzip level is `build-for-release!`'s `:gzip-level`, and the copies are written by hand (`GZIPOutputStream` takes no level).
 
 > Changes in part [A namespace names its stylesheets](2026-10-17-a-namespace-names-its-stylesheets.md): no lightningcss, no `:targets` setting.

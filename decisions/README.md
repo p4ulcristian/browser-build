@@ -10,7 +10,7 @@ All but the last four were made while showroom was two libraries inside Groundwo
 
 - [A namespace names its stylesheets](2026-10-17-a-namespace-names-its-stylesheets.md), changed in part by [A def names its stylesheet](2026-10-22-a-def-names-its-stylesheet-as-a-query-names-its-sql.md) and [Built files are gzipped, not minified](2026-10-22-built-files-are-gzipped-not-minified.md)
 - [The browser build is Groundwork's: watched in development, built once by the deploy](2026-10-22-the-browser-build-is-groundworks.md), changed in part by [showroom is its own library](2026-10-22-showroom-is-its-own-library.md) and [Every value that sets behaviour is a setting](2026-10-22-every-value-that-sets-behaviour-is-a-setting.md)
-- [Built files are gzipped, not minified; no node in the build](2026-10-22-built-files-are-gzipped-not-minified.md), changed in part by [Every value that sets behaviour is a setting](2026-10-22-every-value-that-sets-behaviour-is-a-setting.md), added to by [A release checks its npm packages are the app's own](2026-10-23-a-release-checks-its-npm-packages-are-the-apps-own.md)
+- [Built files are gzipped, not minified; no node in the build](2026-10-22-built-files-are-gzipped-not-minified.md), changed in part by [Every value that sets behaviour is a setting](2026-10-22-every-value-that-sets-behaviour-is-a-setting.md), added to by [A release checks its npm packages are the app's own](2026-10-23-a-release-checks-its-npm-packages-are-the-apps-own.md), changed in part by [Stylesheets are rewritten for the app's browsers by a pinned lightningcss program](2026-10-23-stylesheets-are-rewritten-for-the-apps-browsers-by-a-pinned-lightningcss.md)
 - [A def names its stylesheet, as a query names its .sql file](2026-10-22-a-def-names-its-stylesheet-as-a-query-names-its-sql.md), changed in part by [showroom is its own library](2026-10-22-showroom-is-its-own-library.md) and [The app passes its log to a watch](2026-10-22-the-app-passes-its-log.md)
 - [showroom is its own library](2026-10-22-showroom-is-its-own-library.md), changed in part by [Every value that sets behaviour is a setting](2026-10-22-every-value-that-sets-behaviour-is-a-setting.md)
 - [Every value that sets behaviour is a setting; no hidden defaults](2026-10-22-every-value-that-sets-behaviour-is-a-setting.md), changed in part by [The app passes its log to a watch](2026-10-22-the-app-passes-its-log.md) and [A build has modules loaded on demand](2026-10-23-a-build-has-modules-loaded-on-demand-each-styled-first.md)
@@ -21,6 +21,7 @@ All but the last four were made while showroom was two libraries inside Groundwo
 - [showroom is renamed browser-build](2026-10-23-showroom-is-renamed-browser-build.md)
 - [A module names its start](2026-10-23-a-module-names-its-start.md) (built on tidy-up, not released)
 - [A build names the warnings it silences, and a watch its preloads](2026-10-23-a-build-names-the-warnings-it-silences-and-the-watch-its-preloads.md) (built on tidy-up, not released)
+- [Stylesheets are rewritten for the app's browsers by a pinned lightningcss program](2026-10-23-stylesheets-are-rewritten-for-the-apps-browsers-by-a-pinned-lightningcss.md) (built on tidy-up, not released)
 
 ## Replaced
 

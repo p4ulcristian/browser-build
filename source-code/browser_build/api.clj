@@ -11,7 +11,7 @@
                      :entry 'app.browser.main/start! :modules {} :files-folder \"target/public\"
                      :cache-folder \".shadow-cljs\" :compile-threads 4 :output-feature-set :es2020
                      :resolve {} :closure-defines {} :warnings-as-errors #{} :silenced-warnings #{}
-                     :preloads [] :devtools-host \"localhost\" :devtools-port 9630 :devtools-url nil
+                     :css nil :preloads [] :devtools-host \"localhost\" :devtools-port 9630 :devtools-url nil
                      :nrepl nil :socket-repl nil
                      :hot-reload? true :reload-strategy :optimized :hud #{:errors :warnings :progress}
                      :stylesheet-check-every-ms 300}))
@@ -66,9 +66,10 @@
    files in <files-folder>/js, served at /js (the app's server serves the
    files folder at /). After every compile the stylesheets each module's
    namespaces named become that module's bundle in <files-folder>/css;
-   while watching, shadow-cljs swaps a changed bundle into open pages."
-  [mode {:keys [entry modules files-folder output-feature-set log resolve closure-defines warnings-as-errors
-               silenced-warnings] :as options}]
+   while watching, shadow-cljs swaps a changed bundle into open pages.
+   With :css, each bundle is rewritten by the pinned lightningcss first."
+  [mode {:keys [entry modules files-folder cache-folder output-feature-set log resolve closure-defines
+               warnings-as-errors silenced-warnings css] :as options}]
   (case mode
     :watch   (settings/check-watch-options options)
     :release (settings/check-release-options options))
@@ -80,7 +81,8 @@
              :modules          (make-shadow-modules entry modules)
              :module-loader    true
              ;; a release build has no log: it stops where a watch writes a warning
-             :build-hooks      [(list `stylesheets/bundle-stylesheets {:files-folder files-folder :log log})]
+             :build-hooks      [(list `stylesheets/bundle-stylesheets {:files-folder files-folder :log log
+                                                                     :css css :cache-folder cache-folder})]
              :js-options       {:resolve resolve}
              :compiler-options {:output-feature-set output-feature-set
                                 :closure-defines    closure-defines

@@ -8,13 +8,18 @@ new code swapped into open tabs. For the deploy it is built once: hashed
 names, a manifest, a gzipped copy of each file. **The stylesheets:** a
 namespace names each stylesheet it needs, as a query names its `.sql` file;
 the build gathers them into one bundle, in the order the namespaces are
-found, and checks that none beside the code is left unnamed.
+found, and checks that none beside the code is left unnamed. **The CSS
+step:** with `:css`, each bundle is rewritten by a pinned lightningcss
+program for the browsers the app supports (nesting flattened, `-webkit-`
+prefixes added, nothing minified); with `:css nil`, it is written as the
+files are.
 
 ```clojure
 io.github.p4ulcristian/browser-build {:git/tag "v0.4.3" :git/sha "9efddf6"}
 ```
 
-Needs only shadow-cljs, malli and jsonista, and only to build: take browser-build in the aliases you
+Needs only shadow-cljs, malli and jsonista (and, with `:css`, the
+lightningcss program it downloads itself; no node), and only to build: take browser-build in the aliases you
 build with, never in `:deps`, so production runs without either. One public
 namespace, `browser-build.api`, with a `.clj` half (the build, the macro) and a
 `.cljs` half (for the browser's code to require); its part is
@@ -45,6 +50,7 @@ namespace, `browser-build.api`, with a `.clj` half (the build, the macro) and a
                                :closure-defines    {}               ; goog-defines: {malli.registry/type "custom"}
                                :warnings-as-errors #{}              ; warnings that stop the build: #{:infer-warning}
                                :silenced-warnings  #{}              ; warnings not shown: #{:unreachable-code}
+                               :css                nil              ; or the CSS step, below
                                :source-maps?       false            ; a .map beside each file, readable by anyone
                                :gzip-level         9}}              ; the .gz copies, 1 (fast) to 9 (smallest)
 
@@ -61,6 +67,7 @@ namespace, `browser-build.api`, with a `.clj` half (the build, the macro) and a
                 :closure-defines           {}
                 :warnings-as-errors        #{}
                 :silenced-warnings         #{}
+                :css                       nil             ; or the CSS step, below
                 :preloads                  []              ; development only: namespaces loaded before the entry
                 :devtools-host             "localhost"     ; where open pages connect for new code; it can run code in this JVM
                 :devtools-port             9630            ; a port in use is refused; 0 picks a free one
@@ -85,6 +92,27 @@ namespace, `browser-build.api`, with a `.clj` half (the build, the macro) and a
   [:div {:class "order-card"} (:order/number order)])
 ```
 
+The CSS step, for both builds, every key written out:
+
+```clojure
+:css {:targets      "chrome >= 119, safari >= 16.4, firefox >= 128"   ; a browserslist query
+      :lightningcss {:version "1.33.0"
+                     :sha256  {"linux-x64"    "e7175508098a87b4e9788a695e9a4d780db727f317f69c1c452d6d0db1fc9817"
+                               "darwin-arm64" "c6a00cbd56610472494060d6b53b74ffd19442c6979b9346667e9abadd2c6c45"}}}
+```
+
+`:sha256` is the program's own checksum for each platform the app builds
+on (`linux-x64` `linux-arm64` `darwin-x64` `darwin-arm64` `windows-x64`).
+The program comes once per platform from npm's registry (the
+`lightningcss-cli-<platform>` tarball, read on the JVM), is kept in the
+cache folder, `<cache-folder>/lightningcss/<version>/<platform>/`, and is
+checked when downloaded and every time it runs; a platform the pins don't
+name (`:browser-build/lightningcss-no-platform`), a checksum that differs
+(`:browser-build/lightningcss-checksum`) or lightningcss's own refusal
+(`:browser-build/lightningcss-failed`) stops the build, named. Each file
+in a bundle follows a `/*! path */` comment naming it, which lightningcss
+keeps ([why](decisions/2026-10-23-stylesheets-are-rewritten-for-the-apps-browsers-by-a-pinned-lightningcss.md)).
+
 browser-build prints nothing: while watching, a stylesheet no namespace names
 (`:browser-build/unnamed-stylesheets`) and a failed rebundle
 (`:browser-build/bundle-failed`) go to the app's log, `(log level event data)` as
@@ -105,8 +133,9 @@ can be cached for ever.
 ## Tests
 
 ```sh
-clojure -X:test     # release-builds small entries (the bundle, a missing and an unnamed stylesheet),
-                    # the refusals, and one real watch: compiled, a saved stylesheet and namespace
+clojure -X:test     # release-builds small entries (the bundle, a missing and an unnamed stylesheet,
+                    # the CSS step), the refusals, and one real watch: compiled, a saved stylesheet
+                    # and namespace; downloads lightningcss 1.33.0 from npm's registry, so needs the network
 ```
 
 Why it is the way it is: [`decisions/`](decisions/README.md).
