@@ -1,4 +1,4 @@
-(ns showroom.npm
+(ns browser-build.npm
   "The npm packages a release build takes its JavaScript from, checked
    before any code is compiled: each one the build resolves (react, and
    what react needs, process among them) must be installed as one of the
@@ -57,7 +57,7 @@
   (let [file (io/file installed-record)]
     (when-not (.exists file)
       (throw (ex-info (str "No " installed-record " here: install the npm packages first (npm install)")
-                      {:type :showroom/npm-not-installed})))
+                      {:type :browser-build/npm-not-installed})))
     (get (json/read-value file) "packages")))
 
 (defn- list-npm-resources [build-state]
@@ -92,7 +92,7 @@
     (when (seq problems)
       (throw (ex-info (str "The build needs npm packages that are installed only for development:\n  "
                            (str/join "\n  " (map #(str "\"" (:package %) "\": " (say-what-to-do (:package %))) problems)))
-                      {:type :showroom/npm-package-only-for-development :packages (mapv :package problems)})))
+                      {:type :browser-build/npm-package-only-for-development :packages (mapv :package problems)})))
     build-state))
 
 (defn- find-missing-js
@@ -114,7 +114,7 @@
   "check-npm-packages's refusal, which shadow-cljs wraps in its own
    \"Hook … failed\"."
   [throwable]
-  (some #(when (= :showroom/npm-package-only-for-development (:type (ex-data %))) %)
+  (some #(when (= :browser-build/npm-package-only-for-development (:type (ex-data %))) %)
         (take-while some? (iterate ex-cause throwable))))
 
 (defn tell-npm-problem-plainly
@@ -134,6 +134,6 @@
     (let [package-name (find-package-of-require required)]
       (ex-info (str "The build needs the npm package \"" package-name "\" (" required-from " requires \"" required
                     "\"), which isn't installed: " (say-what-to-do package-name))
-               {:type :showroom/npm-package-missing :package package-name :required-from required-from}
+               {:type :browser-build/npm-package-missing :package package-name :required-from required-from}
                throwable))
     throwable))

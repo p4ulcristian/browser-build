@@ -1,11 +1,11 @@
-(ns showroom.npm-test
+(ns browser-build.npm-test
   "The npm checks, over a build's resolved sources and npm's record as
    data: a package installed only for development is named, one installed
    as the app's own passes, a nested one is found where it is; and a
    package nobody installed is told again with what to do."
   (:require
    [clojure.test :refer [deftest is testing]]
-   [showroom.npm :as npm]))
+   [browser-build.npm :as npm]))
 
 (defn- make-build-state [resources]
   {:build-sources (vec (range (count resources)))
@@ -43,7 +43,7 @@
                                             {:tag :shadow.build.resolve/missing-js :require "process"
                                              :require-from "node_modules/react/cjs/react.production.js"}))
         told   (npm/tell-missing-package-again thrown)]
-    (is (= {:type :showroom/npm-package-missing :package "process" :required-from "node_modules/react/cjs/react.production.js"}
+    (is (= {:type :browser-build/npm-package-missing :package "process" :required-from "node_modules/react/cjs/react.production.js"}
            (ex-data told)))
     (is (re-find #"package\.json's \"dependencies\" \(not \"devDependencies\"" (ex-message told))))
   (is (= "react" (:package (ex-data (npm/tell-missing-package-again
@@ -54,6 +54,6 @@
 
 (deftest the-refusal-is-told-plainly
   (let [refusal (ex-info "The build needs npm packages that are installed only for development"
-                         {:type :showroom/npm-package-only-for-development :packages ["process"]})]
-    (is (identical? refusal (npm/tell-npm-problem-plainly (ex-info "Hook [1 showroom.npm/check-npm-packages] failed" {} refusal)))
+                         {:type :browser-build/npm-package-only-for-development :packages ["process"]})]
+    (is (identical? refusal (npm/tell-npm-problem-plainly (ex-info "Hook [1 browser-build.npm/check-npm-packages] failed" {} refusal)))
         "not shadow-cljs's wrapping")))

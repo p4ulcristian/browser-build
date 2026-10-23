@@ -1,7 +1,7 @@
-# showroom
+# browser-build
 
 What the browser shows, built, for a Clojure app with ClojureScript in the
-browser. **The build:** shadow-cljs, given a build showroom writes as data;
+browser. **The build:** shadow-cljs, given a build browser-build writes as data;
 the app gives its entry, the function the page runs, and every option. In development it
 is watched in the server's own JVM: compiled now, again on every save, the
 new code swapped into open tabs. For the deploy it is built once: hashed
@@ -11,20 +11,20 @@ the build gathers them into one bundle, in the order the namespaces are
 found, and checks that none beside the code is left unnamed.
 
 ```clojure
-io.github.p4ulcristian/showroom {:git/tag "v0.4.2" :git/sha "31e1e3d"}
+io.github.p4ulcristian/browser-build {:git/tag "v0.4.2" :git/sha "31e1e3d"}
 ```
 
-Needs only shadow-cljs, malli and jsonista, and only to build: take showroom in the aliases you
+Needs only shadow-cljs, malli and jsonista, and only to build: take browser-build in the aliases you
 build with, never in `:deps`, so production runs without either. One public
-namespace, `showroom.api`, with a `.clj` half (the build, the macro) and a
+namespace, `browser-build.api`, with a `.clj` half (the build, the macro) and a
 `.cljs` half (for the browser's code to require); its part is
-`showroom.stylesheets`.
+`browser-build.stylesheets`.
 
 ## The api
 
 | name | does |
 |---|---|
-| `start-watching!` `stop-watching!` | development: watch the build in this JVM; code and a saved stylesheet are swapped into open pages; the page loads `/js/main.js` and `/css/main.css`; showroom's messages go to the app's `:log` |
+| `start-watching!` `stop-watching!` | development: watch the build in this JVM; code and a saved stylesheet are swapped into open pages; the page loads `/js/main.js` and `/css/main.css`; browser-build's messages go to the app's `:log` |
 | `build-for-release!` | the deploy: `js/main.<hash>.js`, `css/main.<hash>.css`, `manifest.edn` for each, and `file.gz` beside each; stops on a stylesheet no namespace names, and, before compiling, on an npm package it needs that isn't installed as one of package.json's `dependencies` (not `devDependencies`) |
 | `make-build` | the shadow-cljs build as data, `:watch` or `:release`: the module `main` and the `:modules` loaded on demand, files in `<files-folder>/js`, served at `/js`; each module's stylesheet bundle in `<files-folder>/css` |
 | `load-module!` | in the browser: a module of `:modules`, its stylesheets linked first, then its code, as script tags; a promise |
@@ -32,9 +32,9 @@ namespace, `showroom.api`, with a `.clj` half (the build, the macro) and a
 
 ```clojure
 ;; deps.edn: the build aliases, never :deps
-:browser-build   {:extra-deps {io.github.p4ulcristian/showroom {:git/tag "v0.4.2" :git/sha "31e1e3d"}}}
-:browser-release {:extra-deps {io.github.p4ulcristian/showroom {:git/tag "v0.4.2" :git/sha "31e1e3d"}}
-                  :exec-fn    showroom.api/build-for-release!
+:browser-build   {:extra-deps {io.github.p4ulcristian/browser-build {:git/tag "v0.4.2" :git/sha "31e1e3d"}}}
+:browser-release {:extra-deps {io.github.p4ulcristian/browser-build {:git/tag "v0.4.2" :git/sha "31e1e3d"}}
+                  :exec-fn    browser-build.api/build-for-release!
                   :exec-args  {:entry              app.browser.main/start!
                                :modules            {}               ; or {:admin {:entries [app.admin.page] :depends-on #{:main}}}
                                :files-folder       "target/public"
@@ -48,7 +48,7 @@ namespace, `showroom.api`, with a `.clj` half (the build, the macro) and a
                                :gzip-level         9}}              ; the .gz copies, 1 (fast) to 9 (smallest)
 
 ;; the app's server, in development only: loaded when it watches
-(def watching ((requiring-resolve 'showroom.api/start-watching!)
+(def watching ((requiring-resolve 'browser-build.api/start-watching!)
                {:log                       log             ; the app's (logbook's): an unnamed stylesheet, a failed rebundle
                 :entry                     'app.browser.main/start!
                 :modules                   {}
@@ -74,7 +74,7 @@ namespace, `showroom.api`, with a `.clj` half (the build, the macro) and a
 
 ;; the browser's code, src/app/browser/orders/order_card.cljs beside order_card.css
 (ns app.browser.orders.order-card
-  (:require [showroom.api :as styles]))
+  (:require [browser-build.api :as styles]))
 
 (def order-card-styles (styles/use-stylesheet "app/browser/orders/order_card.css"))
 
@@ -82,16 +82,16 @@ namespace, `showroom.api`, with a `.clj` half (the build, the macro) and a
   [:div {:class "order-card"} (:order/number order)])
 ```
 
-showroom prints nothing: while watching, a stylesheet no namespace names
-(`:showroom/unnamed-stylesheets`) and a failed rebundle
-(`:showroom/bundle-failed`) go to the app's log, `(log level event data)` as
+browser-build prints nothing: while watching, a stylesheet no namespace names
+(`:browser-build/unnamed-stylesheets`) and a failed rebundle
+(`:browser-build/bundle-failed`) go to the app's log, `(log level event data)` as
 [logbook](https://github.com/p4ulcristian/logbook) makes it, under `:log`. A
 release build takes none: it stops on what a watch warns about
 ([why](decisions/2026-10-22-the-app-passes-its-log.md)).
 
 Every option is required: a missing or unknown one is refused, named, with
 every other problem at once, before anything is built. shadow-cljs reads no
-`shadow-cljs.edn`: showroom hands it its whole configuration. What stays
+`shadow-cljs.edn`: browser-build hands it its whole configuration. What stays
 fixed, and why, is in
 [the decision](decisions/2026-10-22-every-value-that-sets-behaviour-is-a-setting.md).
 

@@ -1,5 +1,5 @@
-(ns showroom.settings
-  "showroom's options, as malli shapes, checked before anything is built.
+(ns browser-build.settings
+  "browser-build's options, as malli shapes, checked before anything is built.
    Nothing has a default: every key is written out (nil where it is a
    choice), and a missing or unknown one refuses, named, with every other
    problem at once. Both maps are closed."
@@ -58,7 +58,7 @@
    The build:
    :entry: the function the page runs, app.browser.main/start!, in the
    module main, which the page loads.
-   :modules: the modules the page loads on demand (showroom.api's
+   :modules: the modules the page loads on demand (browser-build.api's
    load-module!), {} for none: {:admin {:entries [app.admin.page]
    :depends-on #{:main}}}.
    :files-folder: where the files go, the folder the app's server serves at
@@ -92,8 +92,8 @@
    for a save, which rebundles them and swaps the bundle into open pages.
 
    :log: the app's log function, (log level event data), made by logbook:
-   a stylesheet no namespace names (:showroom/unnamed-stylesheets) and a
-   rebundle that failed (:showroom/bundle-failed) are written to it."
+   a stylesheet no namespace names (:browser-build/unnamed-stylesheets) and a
+   rebundle that failed (:browser-build/bundle-failed) are written to it."
   (into [:map {:closed true}]
         (concat build-entries
                 [[:log [fn? {:error/message "should be the app's log function, made by logbook"}]]
@@ -117,7 +117,7 @@
    :gzip-level: how hard the .gz copies are squeezed, 1 (fast) to 9
    (smallest).
 
-   No :log: a release build writes no line of showroom's (a stylesheet no
+   No :log: a release build writes no line of browser-build's (a stylesheet no
    namespace names stops it), and its options come from clojure -X's
    :exec-args, where a function can't be written."
   (into [:map {:closed true}]
@@ -136,7 +136,7 @@
   data)
 
 (defn check-watch-options [options]
-  (check-data-for-shape "The options" :showroom/bad-options watch-options-shape options))
+  (check-data-for-shape "The options" :browser-build/bad-options watch-options-shape options))
 
 (defn check-release-options [options]
-  (check-data-for-shape "The options" :showroom/bad-options release-options-shape options))
+  (check-data-for-shape "The options" :browser-build/bad-options release-options-shape options))

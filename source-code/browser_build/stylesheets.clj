@@ -1,7 +1,7 @@
-(ns showroom.stylesheets
+(ns browser-build.stylesheets
   "Each module's stylesheet bundle, made after every compile (a shadow-cljs
    build hook): the stylesheets the module's namespaces named with
-   showroom.api's use-stylesheet, in the order the namespaces are found,
+   browser-build.api's use-stylesheet, in the order the namespaces are found,
    each whole and as written, one after another; a stylesheet two modules
    name is in the first one's (one loads after the other).
 
@@ -11,7 +11,7 @@
 
    The check: every .css file beside the build's namespaces must be named
    by one of them. A release build stops on any that isn't; while watching
-   they are written to the app's log, :warn :showroom/unnamed-stylesheets."
+   they are written to the app's log, :warn :browser-build/unnamed-stylesheets."
   (:require
    [clojure.edn]
    [clojure.java.io :as io]
@@ -22,7 +22,7 @@
 (defn- list-stylesheets-named-in [build-state resource-ids]
   (->> resource-ids
        (keep #(get-in build-state [:sources % :ns]))
-       (mapcat #(get-in build-state [:compiler-env :cljs.analyzer/namespaces % :showroom/stylesheets]))
+       (mapcat #(get-in build-state [:compiler-env :cljs.analyzer/namespaces % :browser-build/stylesheets]))
        (distinct)
        (vec)))
 
@@ -114,8 +114,8 @@
       (if release?
         (throw (ex-info (str "Stylesheets no namespace names (name each with styles/use-stylesheet):\n  "
                              (str/join "\n  " unnamed))
-                        {:type :showroom/unnamed-stylesheets :stylesheets (vec unnamed)}))
-        (log :warn :showroom/unnamed-stylesheets {:showroom/stylesheets (vec unnamed)})))
+                        {:type :browser-build/unnamed-stylesheets :stylesheets (vec unnamed)}))
+        (log :warn :browser-build/unnamed-stylesheets {:browser-build/stylesheets (vec unnamed)})))
     (if release?
       (write-bundles! paths-by-module files-folder true)
       (let [times (find-modified-times named)]
@@ -131,7 +131,7 @@
    before: a save before the thread first runs is still seen. Runs on a
    thread of its own, which a failed check doesn't end (it says why and
    checks again). Returns a function that stops it. A failed check is
-   written to log, :error :showroom/bundle-failed."
+   written to log, :error :browser-build/bundle-failed."
   [check-every-ms log]
   (let [running? (atom true)
         check!   (fn []
@@ -150,8 +150,8 @@
                         (check!)
                         (catch InterruptedException _)
                         (catch Exception e
-                          (log :error :showroom/bundle-failed {:error e})))))
-                  "showroom-stylesheets")]
+                          (log :error :browser-build/bundle-failed {:error e})))))
+                  "browser-build-stylesheets")]
     (doto thread (.setDaemon true) (.start))
     (fn []
       (reset! running? false)

@@ -1,12 +1,12 @@
-(ns showroom.api
-  "The browser's code, built by shadow-cljs from a build showroom writes as
+(ns browser-build.api
+  "The browser's code, built by shadow-cljs from a build browser-build writes as
    data; the app gives its entry (the function the page runs) and every
-   option (showroom.settings: every key required, none filled in). And the
+   option (browser-build.settings: every key required, none filled in). And the
    macro a namespace names its stylesheets with, which the build bundles.
 
      ;; development: compiles, then again on every save, and swaps the new
      ;; code into open tabs (the app's server starts it when it watches)
-     (def watching (showroom/start-watching!
+     (def watching (browser-build/start-watching!
                     {:log log                                  ; the app's (logbook's)
                      :entry 'app.browser.main/start! :modules {} :files-folder \"target/public\"
                      :cache-folder \".shadow-cljs\" :compile-threads 4 :output-feature-set :es2020
@@ -15,7 +15,7 @@
                      :nrepl nil :socket-repl nil
                      :hot-reload? true :reload-strategy :optimized :hud #{:errors :warnings :progress}
                      :stylesheet-check-every-ms 300}))
-     (showroom/stop-watching! watching)
+     (browser-build/stop-watching! watching)
 
      ;; the deploy, once, before the app starts:
      ;;   clojure -X:browser-release :entry app.browser.main/start! :files-folder '\"target/public\"' …
@@ -23,7 +23,7 @@
      ;; manifest for each, which the page shell reads; and a .js and a
      ;; .css for each module loaded on demand (:modules)
 
-     ;; in the app's browser code (showroom.api's ClojureScript half):
+     ;; in the app's browser code (browser-build.api's ClojureScript half):
      (def order-card-styles (styles/use-stylesheet \"app/orders/order_card.css\"))
      (styles/load-module! {\"admin\" \"/css/admin.3F9A….css\"} \"admin\")   ; its stylesheet, then its code
 
@@ -41,9 +41,9 @@
    [shadow.cljs.devtools.server.common :as shadow-common]
    [shadow.cljs.devtools.server.runtime :as shadow-runtime]
    [shadow.runtime.services :as shadow-services]
-   [showroom.npm :as npm]
-   [showroom.settings :as settings]
-   [showroom.stylesheets :as stylesheets])
+   [browser-build.npm :as npm]
+   [browser-build.settings :as settings]
+   [browser-build.stylesheets :as stylesheets])
   (:import
    (java.io OutputStream)
    (java.util.zip CRC32 Deflater DeflaterOutputStream)))
@@ -62,7 +62,7 @@
     :watch   (settings/check-watch-options options)
     :release (settings/check-release-options options))
   (let [{:keys [devtools-url hot-reload? reload-strategy hud]} options]
-    (cond-> {:build-id         :showroom
+    (cond-> {:build-id         :browser-build
              :target           :browser
              :output-dir       (str files-folder "/js")
              :asset-path       "/js"
@@ -109,8 +109,8 @@
 (defn start-watching!
   "Starts shadow-cljs in this JVM and watches the build: compiled now,
    again on every save, the new code swapped into open tabs. The options
-   are showroom.settings/watch-options-shape's, every key required, checked
-   first; showroom's own messages (a stylesheet no namespace names, a
+   are browser-build.settings/watch-options-shape's, every key required, checked
+   first; browser-build's own messages (a stylesheet no namespace names, a
    rebundle that failed) go to their :log, the app's. Returns once the
    first compile is done."
   [options]
@@ -129,7 +129,7 @@
   "Stops watching, and shadow-cljs."
   [{:keys [stop-watching-stylesheets]}]
   (stop-watching-stylesheets)
-  (shadow/stop-worker :showroom)
+  (shadow/stop-worker :browser-build)
   (shadow-server/stop!)
   :stopped)
 
@@ -183,8 +183,8 @@
    code from must be installed as the app's own dependency (in
    package.json's dependencies, not devDependencies): one missing, or
    installed only for development, stops the build, named
-   (showroom.npm). A stylesheet beside the namespaces that none names stops it.
-   The options are showroom.settings/release-options-shape's, every key
+   (browser-build.npm). A stylesheet beside the namespaces that none names stops it.
+   The options are browser-build.settings/release-options-shape's, every key
    required, checked first. For the deploy: clojure -X:browser-release
    :entry … :files-folder … (and every other option)."
   [{:keys [files-folder source-maps? gzip-level] :as options}]
@@ -209,10 +209,10 @@
    namespaces are found. Returns the path."
   [path]
   (when-not (string? path)
-    (throw (ex-info "use-stylesheet takes the path as text, written out" {:type :showroom/bad-path :path path})))
+    (throw (ex-info "use-stylesheet takes the path as text, written out" {:type :browser-build/bad-path :path path})))
   (when-not (io/resource path)
     (throw (ex-info (str "No stylesheet " path " on the classpath (named in " analyzer/*cljs-ns* ")")
-                    {:type :showroom/missing-file :path path :ns analyzer/*cljs-ns*})))
-  (swap! env/*compiler* update-in [:cljs.analyzer/namespaces analyzer/*cljs-ns* :showroom/stylesheets]
+                    {:type :browser-build/missing-file :path path :ns analyzer/*cljs-ns*})))
+  (swap! env/*compiler* update-in [:cljs.analyzer/namespaces analyzer/*cljs-ns* :browser-build/stylesheets]
          (fn [paths] (if (some #{path} paths) paths (conj (or paths []) path))))
   path)

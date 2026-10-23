@@ -1,9 +1,9 @@
-(ns showroom.modules-check.main
+(ns browser-build.modules-check.main
   "The main module of a build with a module loaded on demand: its own
    stylesheet, and the admin module loaded with its stylesheet first."
-  (:require [showroom.api :as styles]))
+  (:require [browser-build.api :as styles]))
 
-(def ^:private main-styles (styles/use-stylesheet "showroom/modules_check/main.css"))
+(def ^:private main-styles (styles/use-stylesheet "browser_build/modules_check/main.css"))
 
 (defn start! []
   (-> (styles/load-module! {"admin" "/css/admin.css"} "admin")

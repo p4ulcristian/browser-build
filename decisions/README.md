@@ -1,8 +1,10 @@
-# showroom decisions
+# browser-build decisions
 
 One file per decision: `YYYY-MM-DD-what-we-decided.md`. The title is the decision. Each file says what we decided, why, and what we chose against. A decision changes by a new file; the old one says so at the top (`Replaced by` or `Changed in part by`), and nothing else in it is rewritten.
 
-All but the last two were made while showroom was two libraries inside Groundwork, a Clojure framework (groundwork.server.browser-build and groundwork.browser.styles, and Groundwork's styles before them); they name its parts (its settings, its page shell, `start-app!`) where they came from. The ones they name that stayed with Groundwork: "Groundwork starts the browser and owns the build", which the build builds on, and "Groundwork is frozen", whose freeze the styles lifted. Groundwork now names both the family of libraries this one belongs to and the composer that puts them together; the decisions that stayed with Groundwork are in the composer's `decisions/`.
+browser-build was named showroom until 2026-10-23 ([showroom is renamed browser-build](2026-10-23-showroom-is-renamed-browser-build.md)); the decisions before it keep that name.
+
+All but the last four were made while showroom was two libraries inside Groundwork, a Clojure framework (groundwork.server.browser-build and groundwork.browser.styles, and Groundwork's styles before them); they name its parts (its settings, its page shell, `start-app!`) where they came from. The ones they name that stayed with Groundwork: "Groundwork starts the browser and owns the build", which the build builds on, and "Groundwork is frozen", whose freeze the styles lifted. Groundwork now names both the family of libraries this one belongs to and the composer that puts them together; the decisions that stayed with Groundwork are in the composer's `decisions/`.
 
 ## In force
 
@@ -15,6 +17,8 @@ All but the last two were made while showroom was two libraries inside Groundwor
 - [The app passes its log to a watch; a release build has none](2026-10-22-the-app-passes-its-log.md)
 - [A build has modules loaded on demand, each with its own stylesheets, linked before its code](2026-10-23-a-build-has-modules-loaded-on-demand-each-styled-first.md)
 - [A release checks, before compiling, that every npm package it needs is the app's own dependency](2026-10-23-a-release-checks-its-npm-packages-are-the-apps-own.md)
+- [A build names its module replacements, its defines and the warnings that stop it; no pass-through](2026-10-23-a-build-names-its-module-replacements-defines-and-warnings-that-stop-it.md)
+- [showroom is renamed browser-build](2026-10-23-showroom-is-renamed-browser-build.md)
 
 ## Replaced
 
@@ -23,4 +27,3 @@ All but the last two were made while showroom was two libraries inside Groundwor
 - [A page loads the stylesheets its code uses](2026-10-15-a-page-loads-the-stylesheets-its-code-uses.md), replaced by [A namespace names its stylesheets](2026-10-17-a-namespace-names-its-stylesheets.md)
 - [A stylesheet paints only its own room](2026-10-15-a-stylesheet-paints-only-its-own-room.md), replaced by [A namespace names its stylesheets](2026-10-17-a-namespace-names-its-stylesheets.md)
 - [A class is a namespaced keyword](2026-10-15-a-class-is-a-namespaced-keyword.md), replaced by [A namespace names its stylesheets](2026-10-17-a-namespace-names-its-stylesheets.md)
-- [A build names its module replacements, its defines and the warnings that stop it; no pass-through](2026-10-23-a-build-names-its-module-replacements-defines-and-warnings-that-stop-it.md)

@@ -1,10 +1,10 @@
-(ns showroom.api
+(ns browser-build.api
   "How the page looks: a namespace names the stylesheets it needs, as a
    query names its .sql file; and a module loaded on demand comes with its
    stylesheets before its code.
 
      (ns app.browser.orders.order-card
-       (:require [showroom.api :as styles]))
+       (:require [browser-build.api :as styles]))
 
      (def order-card-styles (styles/use-stylesheet \"app/orders/order_card.css\"))
 
@@ -14,7 +14,7 @@
      (-> (styles/load-module! {\"admin\" \"/css/admin.3F9A….css\"} \"admin\")
          (.then (fn [_] …)))   ; its code has run
 
-   use-stylesheet is a macro (showroom.api's .clj half): it runs while
+   use-stylesheet is a macro (browser-build.api's .clj half): it runs while
    compiling, so a missing file stops the build at that line. The build
    gathers each module's named stylesheets into its bundle, in the order
    the namespaces are found; the page links main's: /css/main.css while
@@ -27,7 +27,7 @@
    the modules loading with it, first: the code runs once they are in, so
    nothing shows unstyled. A bundle that fails to load doesn't hold the
    code back: a screen without its styles beats no screen."
-  (:require-macros [showroom.api])
+  (:require-macros [browser-build.api])
   (:require
    [shadow.loader :as loader]))
 
