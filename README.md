@@ -15,7 +15,7 @@ prefixes added, nothing minified); with `:css nil`, it is written as the
 files are.
 
 ```clojure
-io.github.p4ulcristian/groundwork-browser-build {:git/tag "v0.4.4" :git/sha "f69ed00"}
+io.github.p4ulcristian/groundwork-browser-build {:git/tag "v0.4.5" :git/sha "268e20f"}
 ```
 
 Needs only shadow-cljs, malli and jsonista (and, with `:css`, the
@@ -37,8 +37,8 @@ namespace, `groundwork-browser-build.api`, with a `.clj` half (the build, the ma
 
 ```clojure
 ;; deps.edn: the build aliases, never :deps
-:browser-build   {:extra-deps {io.github.p4ulcristian/groundwork-browser-build {:git/tag "v0.4.4" :git/sha "f69ed00"}}}
-:browser-release {:extra-deps {io.github.p4ulcristian/groundwork-browser-build {:git/tag "v0.4.4" :git/sha "f69ed00"}}
+:browser-build   {:extra-deps {io.github.p4ulcristian/groundwork-browser-build {:git/tag "v0.4.5" :git/sha "268e20f"}}}
+:browser-release {:extra-deps {io.github.p4ulcristian/groundwork-browser-build {:git/tag "v0.4.5" :git/sha "268e20f"}}
                   :exec-fn    groundwork-browser-build.api/build-for-release!
                   :exec-args  {:entry              app.browser.main/start!
                                :modules            {}               ; or {:admin {:entries [app.admin.page] :depends-on #{:main} :start app.admin.page/start!}}, :start nil for none
