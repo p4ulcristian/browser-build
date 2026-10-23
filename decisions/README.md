@@ -23,3 +23,4 @@ All but the last two were made while showroom was two libraries inside Groundwor
 - [A page loads the stylesheets its code uses](2026-10-15-a-page-loads-the-stylesheets-its-code-uses.md), replaced by [A namespace names its stylesheets](2026-10-17-a-namespace-names-its-stylesheets.md)
 - [A stylesheet paints only its own room](2026-10-15-a-stylesheet-paints-only-its-own-room.md), replaced by [A namespace names its stylesheets](2026-10-17-a-namespace-names-its-stylesheets.md)
 - [A class is a namespaced keyword](2026-10-15-a-class-is-a-namespaced-keyword.md), replaced by [A namespace names its stylesheets](2026-10-17-a-namespace-names-its-stylesheets.md)
+- [A build names its module replacements, its defines and the warnings that stop it; no pass-through](2026-10-23-a-build-names-its-module-replacements-defines-and-warnings-that-stop-it.md)
